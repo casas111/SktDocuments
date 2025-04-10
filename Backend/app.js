@@ -7,6 +7,7 @@ const fs = require('fs-extra');
 // Import routes
 const documentRoutes = require('./routes/documentRoutes');
 const workflowRoutes = require('./routes/workflowRoutes');
+const claudeRoutes = require('./routes/claudeRoutes');
 
 // Create Express app
 const app = express();
@@ -26,6 +27,7 @@ app.use('/files', express.static(path.join(__dirname, 'storage')));
 // Routes
 app.use('/api/documents', documentRoutes);
 app.use('/api/workflow', workflowRoutes);
+app.use('/api/claude', claudeRoutes);
 
 // Root route
 app.get('/', (req, res) => {
