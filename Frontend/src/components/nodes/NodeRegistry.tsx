@@ -7,6 +7,7 @@ export const NODE_TYPES = {
   translationNode: 'translationNode',
   simetrikNode: 'simetrikNode',
   comparisonNode: 'comparisonNode',
+  redNode: 'redNode',
 };
 
 // Node templates with default settings
@@ -95,6 +96,22 @@ export const getNodeDefaults = (type: string, position: { x: number, y: number }
           capabilities: ['Diff', 'Merge', 'Validation'],
         },
       };
+      
+    case NODE_TYPES.redNode:
+      return {
+        ...baseNode,
+        style: {
+          ...baseNode.style,
+          backgroundColor: '#ffebee',
+          borderColor: '#f44336',
+        },
+        data: {
+          ...baseNode.data,
+          icon: 'priority',
+          description: 'High priority processing node',
+          capabilities: ['Priority', 'Alert', 'Critical'],
+        },
+      };
     
     default:
       return baseNode;
@@ -112,6 +129,8 @@ const getDefaultLabel = (type: string): string => {
       return 'Simetrik SaaS Node';
     case NODE_TYPES.comparisonNode:
       return 'Comparison Node';
+    case NODE_TYPES.redNode:
+      return 'Red Node';
     default:
       return 'Node';
   }

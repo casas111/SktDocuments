@@ -29,6 +29,7 @@ import CommunicationNode from '../nodes/CommunicationNode';
 import TranslationNode from '../nodes/TranslationNode';
 import SimetrikNode from '../nodes/SimetrikNode';
 import ComparisonNode from '../nodes/ComparisonNode';
+import RedNode from '../nodes/RedNode';
 
 // Define node types for ReactFlow
 const nodeTypes = {
@@ -36,6 +37,7 @@ const nodeTypes = {
   [NODE_TYPES.translationNode]: TranslationNode,
   [NODE_TYPES.simetrikNode]: SimetrikNode,
   [NODE_TYPES.comparisonNode]: ComparisonNode,
+  [NODE_TYPES.redNode]: RedNode,
 };
 
 // Define custom edge styles
@@ -311,6 +313,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
             if (n.type === NODE_TYPES.translationNode) return '#4caf50';
             if (n.type === NODE_TYPES.simetrikNode) return '#9c27b0';
             if (n.type === NODE_TYPES.comparisonNode) return '#ff9800';
+            if (n.type === NODE_TYPES.redNode) return '#f44336';
             return '#eee';
           }}
           nodeColor={(n) => {
@@ -318,6 +321,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
             if (n.type === NODE_TYPES.translationNode) return '#e8f5e9';
             if (n.type === NODE_TYPES.simetrikNode) return '#f3e5f5';
             if (n.type === NODE_TYPES.comparisonNode) return '#fff3e0';
+            if (n.type === NODE_TYPES.redNode) return '#ffebee';
             return '#fff';
           }}
           nodeBorderRadius={3}
