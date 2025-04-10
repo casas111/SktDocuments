@@ -1,0 +1,54 @@
+{
+  "name": "Test1",
+  "description": "",
+  "processes": [
+    {
+      "id": "communicationNode-1",
+      "documentId": "",
+      "type": "communicationNode",
+      "status": "pending",
+      "startTime": "2025-04-10T00:49:20.657Z",
+      "endTime": null,
+      "progress": 0,
+      "error": null,
+      "metadata": {
+        "nodeId": "communicationNode-1",
+        "nodeType": "communicationNode",
+        "description": "Handles communication between systems"
+      }
+    },
+    {
+      "id": "translationNode-2",
+      "documentId": "",
+      "type": "translationNode",
+      "status": "pending",
+      "startTime": "2025-04-10T00:49:20.657Z",
+      "endTime": null,
+      "progress": 0,
+      "error": null,
+      "metadata": {
+        "nodeId": "translationNode-2",
+        "nodeType": "translationNode",
+        "description": "Translates data between formats"
+      }
+    },
+    {
+      "id": "simetrikNode-3",
+      "documentId": "",
+      "type": "simetrikNode",
+      "status": "pending",
+      "startTime": "2025-04-10T00:49:20.657Z",
+      "endTime": null,
+      "progress": 0,
+      "error": null,
+      "metadata": {
+        "nodeId": "simetrikNode-3",
+        "nodeType": "simetrikNode",
+        "description": "Connects to Simetrik SaaS platform"
+      }
+    }
+  ],
+  "id": "caf84cef-a855-4ac7-8e71-8f9cb0816544",
+  "createdAt": "2025-04-10T00:49:20.658Z",
+  "updatedAt": "2025-04-10T00:49:20.658Z"
+}
