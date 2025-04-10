@@ -1,19 +1,19 @@
 import React from 'react';
 import './App.css';
-import ClaudeChat from './components/ClaudeChat';
+import DocumentsDrive from './components/documents/DocumentsDrive';
 
 function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>Claude AI Integration Demo</h1>
-        <p>This is a demonstration of the Claude 3 API integration</p>
+        <h1>Simetrik Documents Drive</h1>
+        <p>Secure document management with local file system storage</p>
       </header>
       <main style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-        <ClaudeChat />
+        <DocumentsDrive />
       </main>
       <footer style={{ padding: '20px', textAlign: 'center', marginTop: '40px', borderTop: '1px solid #eee' }}>
-        <p>Claude 3 API Integration - {new Date().getFullYear()}</p>
+        <p>Simetrik Documents Drive - {new Date().getFullYear()}</p>
       </footer>
     </div>
   );
