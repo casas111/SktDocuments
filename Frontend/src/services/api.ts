@@ -390,19 +390,18 @@ export const toggleDocumentStarred = async (documentId: string): Promise<ApiResp
 
 /**
  * Preview document by ID
- * @param id Document ID
+ * @param documentId Document ID
  * @returns Promise with document preview URL
  */
-export const previewDocument = async (id: string): Promise<ApiResponse<string>> => {
+export const previewDocument = async (documentId: string): Promise<ApiResponse<string>> => {
   try {
-    const response = await axios.get(`${DOCUMENT_API_ENDPOINT}/preview/${id}`);
-    
+    const response = await axios.get(`${API_BASE_URL}/documents/preview/${documentId}`);
     return {
       success: true,
-      data: response.data
+      data: response.data.url || `${API_BASE_URL}/documents/preview/${documentId}`
     };
   } catch (error) {
-    console.error(`Error previewing document ${id}:`, error);
+    console.error('Error getting document preview:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
@@ -524,6 +523,26 @@ export const addTag = async (documentId: string, tagId: string): Promise<void> =
 
 export const removeTag = async (documentId: string, tagId: string): Promise<void> => {
   await axios.delete(`${API_BASE_URL}/documents/${documentId}/tags/${tagId}`);
+};
+
+export const downloadDocument = async (documentId: string): Promise<Blob> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/documents/download/${documentId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to download document');
+    }
+
+    return await response.blob();
+  } catch (error) {
+    console.error('Error downloading document:', error);
+    throw error;
+  }
 };
 
 module.exports = {

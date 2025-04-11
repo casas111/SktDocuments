@@ -95,6 +95,7 @@ import {
 } from '../../types/document';
 import { useWorkflowStore } from '../../utils/WorkflowStore';
 import { formatFileSize, formatDate } from '../../utils/formatters';
+import { API_BASE_URL } from '../../config';
 
 // Add type for viewType
 type ViewType = 'folder' | 'tag' | 'starred' | 'recent' | 'shared' | 'all' | 'trash';
@@ -566,7 +567,7 @@ const DocumentExplorer: React.FC<DocumentExplorerProps> = ({ viewType, folderId,
                 backgroundColor: 'action.hover'
               }
             }}
-            onClick={() => handleDocumentSelect(doc)}
+            onClick={() => handleDocumentCardClick(doc)}
             onContextMenu={(e) => handleContextMenu(e, doc)}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -694,20 +695,39 @@ const DocumentExplorer: React.FC<DocumentExplorerProps> = ({ viewType, folderId,
     }
   };
 
+  // Add function to get document URL
+  const getDocumentUrl = (document: AppDocument): string => {
+    if (document.url) {
+      return document.url;
+    }
+    return `${API_BASE_URL}/documents/${document.id}`;
+  };
+
   const handleDocumentClick = async (document: AppDocument) => {
     try {
-      // Get the preview URL
+      // If the document has a direct URL, use it
+      if (document.url) {
+        window.open(document.url, '_blank');
+        return;
+      }
+
+      // Otherwise, get the preview URL
       const response = await previewDocument(document.id);
       
       if (response.success && response.data) {
         // Open the preview in a new tab
-        window.open(`${API_BASE_URL}/documents/preview/${document.id}`, '_blank');
+        window.open(response.data, '_blank');
       } else {
         console.error('Failed to get document preview:', response.error);
       }
     } catch (error) {
       console.error('Error handling document click:', error);
     }
+  };
+
+  // Update the document card click handler
+  const handleDocumentCardClick = (document: AppDocument) => {
+    handleDocumentClick(document);
   };
 
   if (loading) {
