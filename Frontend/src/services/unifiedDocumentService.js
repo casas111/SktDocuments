@@ -290,9 +290,9 @@ class UnifiedDocumentService {
    */
   async deleteFile(filePath) {
     try {
-      // Try to delete from documents API first
+      // First try the documents API
       try {
-        const documentsResponse = await axios.delete(`${DOCUMENTS_API}/${encodeURIComponent(filePath)}`);
+        const documentsResponse = await axios.delete(`${DOCUMENTS_API}/files/${encodeURIComponent(filePath)}`);
         
         // Also delete in files API for consistency
         try {
@@ -324,7 +324,7 @@ class UnifiedDocumentService {
         error: error.message || 'Failed to delete file'
       };
     }
-  },
+  }
   
   /**
    * Get file metadata and preview URL
