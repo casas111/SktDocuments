@@ -388,6 +388,28 @@ export const toggleDocumentStarred = async (documentId: string): Promise<ApiResp
   }
 };
 
+/**
+ * Preview document by ID
+ * @param id Document ID
+ * @returns Promise with document preview URL
+ */
+export const previewDocument = async (id: string): Promise<ApiResponse<string>> => {
+  try {
+    const response = await axios.get(`${DOCUMENT_API_ENDPOINT}/preview/${id}`);
+    
+    return {
+      success: true,
+      data: response.data
+    };
+  } catch (error) {
+    console.error(`Error previewing document ${id}:`, error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+};
+
 // Workflow API functions
 export const createWorkflow = async (workflow: {
   name: string;
@@ -502,4 +524,23 @@ export const addTag = async (documentId: string, tagId: string): Promise<void> =
 
 export const removeTag = async (documentId: string, tagId: string): Promise<void> => {
   await axios.delete(`${API_BASE_URL}/documents/${documentId}/tags/${tagId}`);
+};
+
+module.exports = {
+  uploadDocument,
+  getAllDocuments,
+  getDocumentById,
+  previewDocument,
+  downloadDocument,
+  deleteDocument,
+  getDocumentsByFolder,
+  moveDocumentToFolder,
+  getAllFolders,
+  createFolder,
+  deleteFolder,
+  getAllTags,
+  createTag,
+  addTagToDocument,
+  removeTagFromDocument,
+  toggleDocumentStarred
 };

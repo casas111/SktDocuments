@@ -82,7 +82,8 @@ import {
   addTagToDocument,
   removeTagFromDocument,
   toggleDocumentStarred,
-  Document as ApiDocument
+  Document as ApiDocument,
+  previewDocument
 } from '../../services/api';
 import { 
   Document as AppDocument, 
@@ -690,6 +691,22 @@ const DocumentExplorer: React.FC<DocumentExplorerProps> = ({ viewType, folderId,
       }
     } catch (error) {
       showNotification('Error removing tag', 'error');
+    }
+  };
+
+  const handleDocumentClick = async (document: AppDocument) => {
+    try {
+      // Get the preview URL
+      const response = await previewDocument(document.id);
+      
+      if (response.success && response.data) {
+        // Open the preview in a new tab
+        window.open(`${API_BASE_URL}/documents/preview/${document.id}`, '_blank');
+      } else {
+        console.error('Failed to get document preview:', response.error);
+      }
+    } catch (error) {
+      console.error('Error handling document click:', error);
     }
   };
 

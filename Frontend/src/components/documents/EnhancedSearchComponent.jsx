@@ -19,7 +19,8 @@ import {
   CircularProgress,
   Collapse,
   List,
-  ListItem
+  ListItem,
+  Tooltip
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { 
@@ -35,7 +36,9 @@ import {
   KeyboardArrowUp as ArrowUpIcon,
   History as HistoryIcon,
   Star as StarIcon,
-  StarBorder as StarBorderIcon
+  StarBorder as StarBorderIcon,
+  Folder as FolderIcon,
+  InsertDriveFile as FileIcon
 } from '@mui/icons-material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';

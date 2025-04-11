@@ -44,7 +44,7 @@ import {
   GetApp as DownloadIcon,
   FileCopy as CopyIcon,
   ContentCut as CutIcon,
-  ContentPaste as PasteIcon,
+  ContentPaste as ContentPasteIcon,
   Search as SearchIcon,
   Bookmark as BookmarkIcon,
   BookmarkBorder as BookmarkBorderIcon,
@@ -211,6 +211,7 @@ const DocumentsDrive = () => {
   const [isSearchMode, setIsSearchMode] = useState(false);
   const [clipboard, setClipboard] = useState({ items: [], operation: null }); // 'copy', 'cut'
   const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Dialog states
   const [newFolderDialog, setNewFolderDialog] = useState(false);
