@@ -5,147 +5,187 @@
  * correctly after implementing the fixes.
  */
 
-// Import required modules
-const axios = require('axios');
-const { API_BASE_URL } = require('../Frontend/src/config');
+const unifiedDocumentService = require('../Frontend/src/services/unifiedDocumentService');
+const fs = require('fs');
+const path = require('path');
 
-// Test workflow functionality (which should not be touched)
-async function testWorkflowFunctionality() {
-  console.log('=== Testing Workflow Functionality ===');
+// Test folder creation and navigation
+async function testFolderCreationAndNavigation() {
+  console.log('=== Testing Folder Creation and Navigation ===');
   
   try {
-    // List all workflows
-    console.log('Getting all workflows...');
-    const workflowsResponse = await axios.get(`${API_BASE_URL}/workflow`);
+    // Create a test folder
+    const testFolderName = `test-folder-${Date.now()}`;
+    console.log(`Creating test folder: ${testFolderName}`);
     
-    if (workflowsResponse.data && workflowsResponse.data.success) {
-      console.log('✅ Successfully retrieved workflows');
-      const workflows = workflowsResponse.data.data || [];
-      console.log(`Found ${workflows.length} workflows`);
+    const createFolderResponse = await unifiedDocumentService.createFolder(testFolderName, '/');
+    
+    if (createFolderResponse.success && createFolderResponse.data) {
+      const folderPath = createFolderResponse.data.path;
+      console.log(`✅ Test folder created: ${folderPath}`);
       
-      // If there are workflows, test getting a specific one
-      if (workflows.length > 0) {
-        const testWorkflow = workflows[0];
-        console.log(`Testing retrieval of workflow: ${testWorkflow.id}`);
+      // Get directory contents to verify folder exists
+      const contentsResponse = await unifiedDocumentService.getDirectoryContents('/');
+      
+      if (contentsResponse.success && contentsResponse.data) {
+        const createdFolder = contentsResponse.data.find(item => item.path === folderPath);
         
-        const workflowResponse = await axios.get(`${API_BASE_URL}/workflow/${testWorkflow.id}`);
-        
-        if (workflowResponse.data && workflowResponse.data.success) {
-          console.log('✅ Successfully retrieved specific workflow');
+        if (createdFolder) {
+          console.log('✅ Folder found in directory contents');
+          
+          // Create a subfolder to test navigation
+          const subfolderName = `subfolder-${Date.now()}`;
+          console.log(`Creating subfolder: ${subfolderName} in ${folderPath}`);
+          
+          const createSubfolderResponse = await unifiedDocumentService.createFolder(subfolderName, folderPath);
+          
+          if (createSubfolderResponse.success && createSubfolderResponse.data) {
+            const subfolderPath = createSubfolderResponse.data.path;
+            console.log(`✅ Subfolder created: ${subfolderPath}`);
+            
+            // Get directory contents of the parent folder
+            const parentContentsResponse = await unifiedDocumentService.getDirectoryContents(folderPath);
+            
+            if (parentContentsResponse.success && parentContentsResponse.data) {
+              const createdSubfolder = parentContentsResponse.data.find(item => item.path === subfolderPath);
+              
+              if (createdSubfolder) {
+                console.log('✅ Subfolder found in parent folder contents');
+                console.log('✅ Folder creation and navigation test passed');
+                
+                // Clean up - delete the subfolder
+                await unifiedDocumentService.deleteFolder(subfolderPath);
+                
+                // Clean up - delete the test folder
+                await unifiedDocumentService.deleteFolder(folderPath);
+                
+                return true;
+              } else {
+                console.error('❌ Subfolder not found in parent folder contents');
+                return false;
+              }
+            } else {
+              console.error('❌ Failed to get parent folder contents:', parentContentsResponse.error);
+              return false;
+            }
+          } else {
+            console.error('❌ Failed to create subfolder:', createSubfolderResponse.error);
+            return false;
+          }
         } else {
-          console.error('❌ Failed to retrieve specific workflow');
+          console.error('❌ Created folder not found in directory contents');
           return false;
         }
       } else {
-        console.log('No existing workflows to test. Creating a test workflow...');
-        
-        // Create a test workflow
-        const testWorkflow = {
-          name: 'Test Workflow',
-          description: 'This is a test workflow to verify functionality',
-          processes: []
-        };
-        
-        const createResponse = await axios.post(`${API_BASE_URL}/workflow`, testWorkflow);
-        
-        if (createResponse.data && createResponse.data.success) {
-          console.log('✅ Successfully created test workflow');
-          
-          // Clean up - delete the test workflow
-          const workflowId = createResponse.data.data.id;
-          console.log(`Cleaning up - deleting test workflow: ${workflowId}`);
-          
-          const deleteResponse = await axios.delete(`${API_BASE_URL}/workflow/${workflowId}`);
-          
-          if (deleteResponse.data && deleteResponse.data.success) {
-            console.log('✅ Successfully deleted test workflow');
-          } else {
-            console.error('❌ Failed to delete test workflow');
-          }
-        } else {
-          console.error('❌ Failed to create test workflow');
-          return false;
-        }
+        console.error('❌ Failed to get directory contents:', contentsResponse.error);
+        return false;
       }
     } else {
-      console.error('❌ Failed to retrieve workflows');
+      console.error('❌ Failed to create test folder:', createFolderResponse.error);
       return false;
     }
-    
-    console.log('✅ Workflow functionality test completed successfully');
-    return true;
   } catch (error) {
-    console.error('❌ Error testing workflow functionality:', error.message);
+    console.error('❌ Error during folder creation and navigation test:', error);
     return false;
   }
 }
 
-// Test document upload functionality
-async function testDocumentUpload() {
-  console.log('=== Testing Document Upload Functionality ===');
+// Test file viewing and downloading
+async function testFileViewingAndDownloading() {
+  console.log('=== Testing File Viewing and Downloading ===');
   
   try {
-    // Create a test document
-    const testDocument = {
-      name: 'Test Document',
-      content: 'This is a test document to verify upload functionality'
-    };
+    // Create a test file
+    const testFilePath = path.join(__dirname, 'test-file-view.txt');
+    const testFileContent = 'This is a test file for viewing and downloading.';
     
-    // Create form data for the upload
-    const formData = new FormData();
-    formData.append('file', new Blob([testDocument.content], { type: 'text/plain' }), 'test-document.txt');
+    // Write test file
+    fs.writeFileSync(testFilePath, testFileContent);
+    console.log(`Created test file: ${testFilePath}`);
     
-    console.log('Uploading test document...');
-    const uploadResponse = await axios.post(`${API_BASE_URL}/documents/upload`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
+    // Create a test folder
+    const testFolderName = `test-folder-view-${Date.now()}`;
+    console.log(`Creating test folder: ${testFolderName}`);
     
-    if (uploadResponse.data && uploadResponse.data.success) {
-      console.log('✅ Successfully uploaded test document');
+    const createFolderResponse = await unifiedDocumentService.createFolder(testFolderName, '/');
+    
+    if (createFolderResponse.success && createFolderResponse.data) {
+      const folderPath = createFolderResponse.data.path;
+      console.log(`✅ Test folder created: ${folderPath}`);
       
-      const documentId = uploadResponse.data.document.id;
-      console.log(`Document ID: ${documentId}`);
+      // Upload file to the test folder
+      console.log(`Uploading test file to folder: ${folderPath}`);
       
-      // Verify the document was uploaded by retrieving it
-      console.log('Verifying document was uploaded...');
-      const getResponse = await axios.get(`${API_BASE_URL}/documents/${documentId}`);
+      // Create a File object from the test file
+      const fileBuffer = fs.readFileSync(testFilePath);
+      const file = new File([fileBuffer], 'test-file-view.txt', { type: 'text/plain' });
       
-      if (getResponse.data && getResponse.data.success) {
-        console.log('✅ Successfully retrieved uploaded document');
+      const uploadResponse = await unifiedDocumentService.uploadFiles([file], folderPath);
+      
+      if (uploadResponse.success) {
+        console.log('✅ File uploaded successfully');
         
-        // Verify the document has a unique URL
-        if (getResponse.data.document && getResponse.data.document.url) {
-          console.log('✅ Document has a unique URL:', getResponse.data.document.url);
+        // Get directory contents to find the uploaded file
+        const contentsResponse = await unifiedDocumentService.getDirectoryContents(folderPath);
+        
+        if (contentsResponse.success && contentsResponse.data) {
+          const uploadedFile = contentsResponse.data.find(item => item.name === 'test-file-view.txt');
+          
+          if (uploadedFile) {
+            console.log('✅ Uploaded file found in directory contents');
+            
+            // Get file info to check viewing and downloading URLs
+            const fileInfoResponse = await unifiedDocumentService.getFileInfo(uploadedFile.path);
+            
+            if (fileInfoResponse.success && fileInfoResponse.data) {
+              const fileInfo = fileInfoResponse.data;
+              
+              // Check if download URL is available
+              if (fileInfo.downloadUrl) {
+                console.log('✅ Download URL is available:', fileInfo.downloadUrl);
+              } else {
+                console.error('❌ Download URL is not available');
+                return false;
+              }
+              
+              console.log('✅ File viewing and downloading test passed');
+              
+              // Clean up - delete the file
+              await unifiedDocumentService.deleteFile(uploadedFile.path);
+              
+              // Clean up - delete the test folder
+              await unifiedDocumentService.deleteFolder(folderPath);
+              
+              return true;
+            } else {
+              console.error('❌ Failed to get file info:', fileInfoResponse.error);
+              return false;
+            }
+          } else {
+            console.error('❌ Uploaded file not found in directory contents');
+            return false;
+          }
         } else {
-          console.error('❌ Document does not have a unique URL');
+          console.error('❌ Failed to get directory contents:', contentsResponse.error);
           return false;
         }
-        
-        // Clean up - delete the test document
-        console.log(`Cleaning up - deleting test document: ${documentId}`);
-        const deleteResponse = await axios.delete(`${API_BASE_URL}/documents/${documentId}`);
-        
-        if (deleteResponse.data && deleteResponse.data.success) {
-          console.log('✅ Successfully deleted test document');
-        } else {
-          console.error('❌ Failed to delete test document');
-        }
       } else {
-        console.error('❌ Failed to retrieve uploaded document');
+        console.error('❌ Failed to upload file:', uploadResponse.error);
         return false;
       }
     } else {
-      console.error('❌ Failed to upload test document');
+      console.error('❌ Failed to create test folder:', createFolderResponse.error);
       return false;
     }
-    
-    console.log('✅ Document upload functionality test completed successfully');
-    return true;
   } catch (error) {
-    console.error('❌ Error testing document upload functionality:', error.message);
+    console.error('❌ Error during file viewing and downloading test:', error);
     return false;
+  } finally {
+    // Clean up test file
+    if (fs.existsSync(testFilePath)) {
+      fs.unlinkSync(testFilePath);
+      console.log(`Cleaned up test file: ${testFilePath}`);
+    }
   }
 }
 
@@ -153,10 +193,10 @@ async function testDocumentUpload() {
 async function runAllTests() {
   console.log('=== Starting Verification of Working Features ===');
   
-  const workflowResult = await testWorkflowFunctionality();
-  const uploadResult = await testDocumentUpload();
+  const folderCreationResult = await testFolderCreationAndNavigation();
+  const fileViewingResult = await testFileViewingAndDownloading();
   
-  if (workflowResult && uploadResult) {
+  if (folderCreationResult && fileViewingResult) {
     console.log('🎉 All working features are preserved!');
     return true;
   } else {

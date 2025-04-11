@@ -11,7 +11,11 @@ import {
   CircularProgress,
   Alert,
   Tooltip,
-  Snackbar
+  Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import {
   Folder as FolderIcon,
@@ -19,13 +23,15 @@ import {
   CreateNewFolder as NewFolderIcon,
   Upload as UploadIcon,
   Refresh as RefreshIcon,
-  NavigateNext as NavigateNextIcon
+  NavigateNext as NavigateNextIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
 import { useNavigate, useLocation } from 'react-router-dom';
 import unifiedDocumentService from '../../services/unifiedDocumentService';
 import ImprovedFolderTree from './ImprovedFolderTree';
 import EnhancedFolderManager from './EnhancedFolderManager';
+import EnhancedUploadComponent from './EnhancedUploadComponent';
 
 // Styled components
 const DocumentExplorerContainer = styled(Box)(({ theme }) => ({
@@ -109,6 +115,9 @@ const EnhancedDocumentExplorer = () => {
     message: '',
     severity: 'info'
   });
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -194,9 +203,85 @@ const EnhancedDocumentExplorer = () => {
     });
   };
   
+  // Open upload dialog
+  const handleOpenUploadDialog = () => {
+    setUploadDialogOpen(true);
+  };
+  
+  // Close upload dialog
+  const handleCloseUploadDialog = () => {
+    setUploadDialogOpen(false);
+  };
+  
+  // Handle file upload completion
+  const handleUploadComplete = () => {
+    // Refresh the current directory to show new files
+    loadDirectoryContents(currentPath);
+    
+    // Show notification
+    setNotification({
+      open: true,
+      message: 'Files uploaded successfully',
+      severity: 'success'
+    });
+    
+    // Close the dialog
+    setUploadDialogOpen(false);
+  };
+  
   // Navigate to file
   const navigateToFile = (filePath) => {
     navigate(`/file/${encodeURIComponent(filePath)}`);
+  };
+  
+  // Open delete confirmation dialog for a file
+  const handleDeleteFile = (file) => {
+    setItemToDelete({
+      type: 'file',
+      path: file.path,
+      name: file.name
+    });
+    setDeleteDialogOpen(true);
+  };
+  
+  // Delete the selected item (file or folder)
+  const handleConfirmDelete = async () => {
+    if (!itemToDelete) return;
+    
+    try {
+      setLoading(true);
+      
+      let response;
+      if (itemToDelete.type === 'file') {
+        // Delete file
+        response = await unifiedDocumentService.deleteFile(itemToDelete.path);
+      } else {
+        // Delete folder
+        response = await unifiedDocumentService.deleteFolder(itemToDelete.path);
+      }
+      
+      if (response.success) {
+        // Refresh the current directory
+        loadDirectoryContents(currentPath);
+        
+        // Show success notification
+        setNotification({
+          open: true,
+          message: `${itemToDelete.type === 'file' ? 'File' : 'Folder'} "${itemToDelete.name}" deleted successfully`,
+          severity: 'success'
+        });
+      } else {
+        // Show error notification
+        setError(response.error || `Failed to delete ${itemToDelete.type}`);
+      }
+    } catch (err) {
+      console.error(`Error deleting ${itemToDelete.type}:`, err);
+      setError(err.message || `An unexpected error occurred while deleting ${itemToDelete.type}`);
+    } finally {
+      setLoading(false);
+      setDeleteDialogOpen(false);
+      setItemToDelete(null);
+    }
   };
   
   // Close notification
@@ -281,6 +366,15 @@ const EnhancedDocumentExplorer = () => {
                   onFolderCreated={handleFolderCreated}
                 />
               </Button>
+              
+              <Button
+                variant="contained"
+                startIcon={<UploadIcon />}
+                onClick={handleOpenUploadDialog}
+                sx={{ mr: 1 }}
+              >
+                Upload Files
+              </Button>
             </Box>
             
             <Tooltip title="Refresh">
@@ -319,14 +413,40 @@ const EnhancedDocumentExplorer = () => {
                       .filter(folder => folder.parent === currentPath)
                       .map(folder => (
                         <Grid item xs={6} sm={4} md={3} lg={2} key={folder.path}>
-                          <FolderCard onClick={() => navigateToFolder(folder.path)}>
-                            <IconContainer>
-                              <FolderIcon fontSize="large" />
-                            </IconContainer>
+                          <FolderCard>
+                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+                              <IconButton 
+                                size="small" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setItemToDelete({
+                                    type: 'folder',
+                                    path: folder.path,
+                                    name: folder.name
+                                  });
+                                  setDeleteDialogOpen(true);
+                                }}
+                                sx={{ 
+                                  position: 'absolute', 
+                                  top: 4, 
+                                  right: 4,
+                                  opacity: 0.7,
+                                  '&:hover': { opacity: 1, bgcolor: 'rgba(0,0,0,0.1)' }
+                                }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
                             
-                            <Typography variant="body2" align="center" noWrap>
-                              {folder.name}
-                            </Typography>
+                            <Box onClick={() => navigateToFolder(folder.path)} sx={{ cursor: 'pointer', pt: 1 }}>
+                              <IconContainer>
+                                <FolderIcon fontSize="large" />
+                              </IconContainer>
+                              
+                              <Typography variant="body2" align="center" noWrap>
+                                {folder.name}
+                              </Typography>
+                            </Box>
                           </FolderCard>
                         </Grid>
                       ))}
@@ -344,18 +464,39 @@ const EnhancedDocumentExplorer = () => {
                   <Grid container spacing={2}>
                     {files.map(file => (
                       <Grid item xs={6} sm={4} md={3} lg={2} key={file.path}>
-                        <FileCard onClick={() => navigateToFile(file.path)}>
-                          <IconContainer>
-                            <FileIcon fontSize="large" />
-                          </IconContainer>
+                        <FileCard>
+                          <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+                            <IconButton 
+                              size="small" 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteFile(file);
+                              }}
+                              sx={{ 
+                                position: 'absolute', 
+                                top: 4, 
+                                right: 4,
+                                opacity: 0.7,
+                                '&:hover': { opacity: 1, bgcolor: 'rgba(0,0,0,0.1)' }
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Box>
                           
-                          <Typography variant="body2" align="center" noWrap>
-                            {file.name}
-                          </Typography>
-                          
-                          <Typography variant="caption" color="text.secondary">
-                            {(file.size / 1024).toFixed(1)} KB
-                          </Typography>
+                          <Box onClick={() => navigateToFile(file.path)} sx={{ cursor: 'pointer', pt: 1 }}>
+                            <IconContainer>
+                              <FileIcon fontSize="large" />
+                            </IconContainer>
+                            
+                            <Typography variant="body2" align="center" noWrap>
+                              {file.name}
+                            </Typography>
+                            
+                            <Typography variant="caption" color="text.secondary">
+                              {(file.size / 1024).toFixed(1)} KB
+                            </Typography>
+                          </Box>
                         </FileCard>
                       </Grid>
                     ))}
@@ -406,6 +547,59 @@ const EnhancedDocumentExplorer = () => {
           {notification.message}
         </Alert>
       </Snackbar>
+      
+      {/* File Upload Dialog */}
+      <Dialog
+        open={uploadDialogOpen}
+        onClose={handleCloseUploadDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Upload Files</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Upload files to current folder: {currentPath === '/' ? 'Root' : currentPath}
+          </Typography>
+          <EnhancedUploadComponent 
+            currentPath={currentPath}
+            onUploadComplete={handleUploadComplete}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseUploadDialog}>Close</Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          {itemToDelete && (
+            <Typography>
+              Are you sure you want to delete {itemToDelete.type} "{itemToDelete.name}"?
+              {itemToDelete.type === 'folder' && (
+                <Typography color="error" sx={{ mt: 1 }}>
+                  Warning: This will delete all files and subfolders inside this folder.
+                </Typography>
+              )}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={handleConfirmDelete} 
+            color="error" 
+            variant="contained"
+            disabled={loading}
+          >
+            {loading ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </DocumentExplorerContainer>
   );
 };
