@@ -1,10 +1,8 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { ThemeProvider, createTheme, CssBaseline, Box } from '@mui/material';
-import WorkflowBuilder from './components/workflow/WorkflowBuilder';
-import DocumentDrive from './components/documents/DocumentDrive';
+import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { DocumentStoreProvider } from './utils/DocumentStore';
 import { WorkflowStoreProvider } from './utils/WorkflowStore';
+import MainLayout from './components/layout/MainLayout';
 
 // Create a theme
 const theme = createTheme({
@@ -57,14 +55,7 @@ function App() {
       <CssBaseline />
       <DocumentStoreProvider>
         <WorkflowStoreProvider>
-          <Box sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
-            <Routes>
-              <Route path="/" element={<WorkflowBuilder />} />
-              <Route path="/workflow" element={<WorkflowBuilder />} />
-              <Route path="/workflow/:id" element={<WorkflowBuilder />} />
-              <Route path="/documents/*" element={<DocumentDrive />} />
-            </Routes>
-          </Box>
+          <MainLayout />
         </WorkflowStoreProvider>
       </DocumentStoreProvider>
     </ThemeProvider>
