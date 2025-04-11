@@ -1,21 +1,22 @@
 import React, { useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import DocumentsDrive from './components/documents/DocumentsDrive';
+import { useNavigate, useLocation } from 'react-router-dom';
+import DocumentsDrive from './DocumentsDrive';
 
 const DriveNavigationHandler = () => {
-  const location = useLocation();
   const navigate = useNavigate();
-  
+  const location = useLocation();
+
   useEffect(() => {
-    // Extract the path from the URL
-    const path = location.pathname.replace('/drive', '') || '/';
-    
-    // Store the current path in localStorage for the DocumentsDrive component to use
-    localStorage.setItem('currentDrivePath', path);
-    
-  }, [location.pathname]);
-  
-  return <DocumentsDrive />;
+    const handlePathChange = (event) => {
+      const { path } = event.detail;
+      navigate(path, { replace: true });
+    };
+
+    window.addEventListener('drivePathChange', handlePathChange);
+    return () => window.removeEventListener('drivePathChange', handlePathChange);
+  }, [navigate]);
+
+  return null;
 };
 
 export default DriveNavigationHandler;
