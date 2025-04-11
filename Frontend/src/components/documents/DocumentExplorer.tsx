@@ -382,10 +382,7 @@ const DocumentExplorer: React.FC<DocumentExplorerProps> = ({ viewType, folderId,
       const response = await createFolder(newFolderName, currentFolder?.id || 'root');
       if (response.success && response.data) {
         // Wait a longer moment to ensure the backend has fully processed the creation
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Then refresh the folders list
-        await loadFolders();
+        await new Promise(resolve => setTimeout(resolve, 1500));
         
         // Add the new folder to the current folders list immediately
         // This ensures it appears in the UI even if the backend refresh is delayed
@@ -399,6 +396,9 @@ const DocumentExplorer: React.FC<DocumentExplorerProps> = ({ viewType, folderId,
             return prevFolders;
           });
         }
+        
+        // Then refresh the folders list
+        await loadFolders();
         
         showNotification('Folder created successfully', 'success');
         setNewFolderName('');

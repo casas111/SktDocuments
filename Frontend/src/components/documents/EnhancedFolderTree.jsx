@@ -282,8 +282,8 @@ const EnhancedFolderTree = ({
       const response = await fileService.createFolder(newFolderParent, newFolderName);
       
       if (response.data && response.data.success) {
-        // Wait to ensure backend processing completes
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Wait longer to ensure backend processing completes
+        await new Promise(resolve => setTimeout(resolve, 1500));
         
         // Add the new folder to the folder structure immediately
         // This ensures it appears in the UI even if the backend refresh is delayed
@@ -307,6 +307,11 @@ const EnhancedFolderTree = ({
           if (!updatedFolderStructure.some(f => f.path === newFolderPath)) {
             updatedFolderStructure.push(folderObj);
             setFolderStructure(updatedFolderStructure);
+            
+            // Force re-render of the folder tree
+            setTimeout(() => {
+              setFolderStructure([...updatedFolderStructure]);
+            }, 100);
           }
         }
         

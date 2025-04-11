@@ -1,0 +1,41 @@
+{
+  "timestamp": "2025-04-11T05:53:00.901Z",
+  "uploadedDocument": {
+    "id": "test-id",
+    "originalName": "test-image.png",
+    "filename": "test-image.png",
+    "mimetype": "image/png",
+    "size": 68,
+    "path": "/files/uploads/test-image.png",
+    "url": "/files/uploads/test-image.png"
+  },
+  "urlResults": [
+    {
+      "originalPath": "/files/uploads/test-image.png",
+      "fileId": "JTJGZmlsZXMlMkZ1cGxvYWRzJTJGdGVzdC1pbWFnZS5wbmc=",
+      "decodedPath": "/files/uploads/test-image.png",
+      "directUrl": "http://localhost:3001/files/uploads/test-image.png"
+    },
+    {
+      "originalPath": "/files/uploads/test-image.png",
+      "fileId": "JTJGZmlsZXMlMkZ1cGxvYWRzJTJGdGVzdC1pbWFnZS5wbmc=",
+      "decodedPath": "/files/uploads/test-image.png",
+      "directUrl": "http://localhost:3001/files/uploads/test-image.png"
+    },
+    {
+      "originalPath": "/files/uploads/test-image.png",
+      "fileId": "JTJGZmlsZXMlMkZ1cGxvYWRzJTJGdGVzdC1pbWFnZS5wbmc=",
+      "decodedPath": "/files/uploads/test-image.png",
+      "directUrl": "http://localhost:3001/files/uploads/test-image.png"
+    },
+    {
+      "originalPath": "files/uploads/test-image.png",
+      "fileId": "ZmlsZXMlMkZ1cGxvYWRzJTJGdGVzdC1pbWFnZS5wbmc=",
+      "decodedPath": "files/uploads/test-image.png",
+      "directUrl": "http://localhost:3001/files/uploads/test-image.png"
+    }
+  ],
+  "fileMetadata": null,
+  "downloadSuccess": false,
+  "directAccessSuccess": false
+}

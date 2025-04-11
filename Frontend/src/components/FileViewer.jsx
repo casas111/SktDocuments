@@ -8,16 +8,24 @@ import {
   Button,
   Alert,
   Breadcrumbs,
-  Link as MuiLink
+  Link as MuiLink,
+  Card,
+  CardMedia,
+  CardContent,
+  Divider
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
   GetApp as DownloadIcon,
-  Visibility as ViewIcon
+  Visibility as ViewIcon,
+  Image as ImageIcon,
+  PictureAsPdf as PdfIcon,
+  InsertDriveFile as FileIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:3001';
 
 /**
  * FileViewer component for handling unique file URLs
@@ -30,7 +38,8 @@ const FileViewer = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [fileInfo, setFileInfo] = useState(null);
-  const [autoDownload, setAutoDownload] = useState(true);
+  const [autoDownload, setAutoDownload] = useState(false);
+  const [directUrl, setDirectUrl] = useState(null);
   
   useEffect(() => {
     const fetchFileInfo = async () => {
@@ -46,11 +55,20 @@ const FileViewer = () => {
           throw new Error('Invalid file ID format');
         }
         
+        console.log('Decoded file path:', filePath);
+        
         // Get file metadata
         const response = await axios.get(`${API_URL}/files/metadata/${encodeURIComponent(filePath)}`);
         
         if (response.data && response.data.success) {
           setFileInfo(response.data.data);
+          
+          // Create direct URL to the file
+          // This is the key fix - constructing the proper URL to the static file
+          const directFileUrl = `${BACKEND_URL}${filePath.startsWith('/') ? '' : '/'}${filePath}`;
+          setDirectUrl(directFileUrl);
+          
+          console.log('Direct file URL:', directFileUrl);
           
           // Auto-download the file if setting is enabled
           if (autoDownload) {
@@ -125,6 +143,17 @@ const FileViewer = () => {
     );
   };
   
+  // Get appropriate icon for file type
+  const getFileIcon = (mimetype) => {
+    if (mimetype?.startsWith('image/')) {
+      return <ImageIcon fontSize="large" />;
+    } else if (mimetype === 'application/pdf') {
+      return <PdfIcon fontSize="large" />;
+    } else {
+      return <FileIcon fontSize="large" />;
+    }
+  };
+  
   return (
     <Box sx={{ p: 3, maxWidth: '1200px', margin: '0 auto' }}>
       <Breadcrumbs sx={{ mb: 2 }}>
@@ -140,7 +169,7 @@ const FileViewer = () => {
         <Typography color="text.primary">File Viewer</Typography>
       </Breadcrumbs>
       
-      <Paper elevation={2} sx={{ p: 3 }}>
+      <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
             <CircularProgress />
@@ -151,54 +180,85 @@ const FileViewer = () => {
           </Alert>
         ) : fileInfo ? (
           <Box>
-            <Typography variant="h5" gutterBottom>
-              {fileInfo.name}
-            </Typography>
-            
-            <Box sx={{ mb: 3 }}>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Type: {fileInfo.type}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Size: {(fileInfo.size / 1024).toFixed(2)} KB
-              </Typography>
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Modified: {new Date(fileInfo.modifiedAt).toLocaleString()}
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              {getFileIcon(fileInfo.type)}
+              <Typography variant="h5" sx={{ ml: 2 }}>
+                {fileInfo.name}
               </Typography>
             </Box>
             
-            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-              <Button
-                variant="contained"
-                startIcon={<DownloadIcon />}
-                onClick={handleDownload}
-              >
-                Download
-              </Button>
+            <Divider sx={{ mb: 3 }} />
+            
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 4, mb: 4 }}>
+              <Box sx={{ minWidth: 200 }}>
+                <Typography variant="subtitle2" color="text.secondary">
+                  File Details
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  <strong>Type:</strong> {fileInfo.type}
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                  <strong>Size:</strong> {(fileInfo.size / 1024).toFixed(2)} KB
+                </Typography>
+                <Typography variant="body2" sx={{ mt: 0.5 }}>
+                  <strong>Modified:</strong> {new Date(fileInfo.modifiedAt).toLocaleString()}
+                </Typography>
+              </Box>
               
-              <Button
-                variant="outlined"
-                startIcon={autoDownload ? <ViewIcon /> : <DownloadIcon />}
-                onClick={toggleAutoDownload}
-              >
-                {autoDownload ? 'Disable Auto-Download' : 'Enable Auto-Download'}
-              </Button>
+              <Box>
+                <Typography variant="subtitle2" color="text.secondary">
+                  Actions
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 2, mt: 1 }}>
+                  <Button
+                    variant="contained"
+                    startIcon={<DownloadIcon />}
+                    onClick={handleDownload}
+                    color="primary"
+                  >
+                    Download
+                  </Button>
+                  
+                  {isViewable(fileInfo.type) && (
+                    <Button
+                      variant="outlined"
+                      startIcon={<ViewIcon />}
+                      href={directUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open in New Tab
+                    </Button>
+                  )}
+                  
+                  <Button
+                    variant="text"
+                    onClick={toggleAutoDownload}
+                    color={autoDownload ? "secondary" : "inherit"}
+                  >
+                    {autoDownload ? 'Disable Auto-Download' : 'Enable Auto-Download'}
+                  </Button>
+                </Box>
+              </Box>
             </Box>
             
             {isViewable(fileInfo.type) && (
-              <Box sx={{ mt: 3, border: '1px solid #ddd', borderRadius: 1, overflow: 'hidden' }}>
+              <Card sx={{ mt: 3, overflow: 'hidden', borderRadius: 2 }}>
                 {fileInfo.type.startsWith('image/') ? (
-                  <Box sx={{ textAlign: 'center', p: 2 }}>
-                    <img 
-                      src={`${API_URL}/files/download/${encodeURIComponent(fileInfo.path)}`}
-                      alt={fileInfo.name}
-                      style={{ maxWidth: '100%', maxHeight: '500px' }}
-                    />
-                  </Box>
+                  <CardMedia
+                    component="img"
+                    image={directUrl}
+                    alt={fileInfo.name}
+                    sx={{ 
+                      maxHeight: '600px',
+                      objectFit: 'contain',
+                      backgroundColor: '#f5f5f5'
+                    }}
+                  />
                 ) : fileInfo.type === 'application/pdf' ? (
                   <Box sx={{ height: '600px' }}>
                     <iframe
-                      src={`${API_URL}/files/download/${encodeURIComponent(fileInfo.path)}`}
+                      src={directUrl}
                       title={fileInfo.name}
                       width="100%"
                       height="100%"
@@ -206,12 +266,27 @@ const FileViewer = () => {
                     />
                   </Box>
                 ) : (
-                  <Box sx={{ p: 2 }}>
+                  <CardContent>
                     <Typography variant="body2">
                       Preview not available for this file type. Please download the file to view it.
                     </Typography>
-                  </Box>
+                  </CardContent>
                 )}
+              </Card>
+            )}
+            
+            {/* Debug information - can be removed in production */}
+            {process.env.NODE_ENV === 'development' && (
+              <Box sx={{ mt: 4, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+                <Typography variant="caption" component="div">
+                  <strong>Debug Info:</strong>
+                </Typography>
+                <Typography variant="caption" component="div">
+                  Path: {fileInfo.path}
+                </Typography>
+                <Typography variant="caption" component="div">
+                  Direct URL: {directUrl}
+                </Typography>
               </Box>
             )}
           </Box>

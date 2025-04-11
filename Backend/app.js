@@ -10,6 +10,8 @@ const workflowRoutes = require('./routes/workflowRoutes');
 const claudeRoutes = require('./routes/claudeRoutes');
 const fileRoutes = require('./routes/fileRoutes');
 const fileMetadataRoutes = require('./routes/fileMetadataRoutes');
+const directFileRoutes = require('./routes/directFileRoutes');
+const tagRoutes = require('./routes/tagRoutes');
 
 // Create Express app
 const app = express();
@@ -26,12 +28,16 @@ fs.ensureDirSync(path.join(__dirname, 'storage', 'processed'));
 // Static file serving for processed documents
 app.use('/files', express.static(path.join(__dirname, 'storage')));
 
-// Routes
+// Direct file routes
+app.use('/files', directFileRoutes);
+
+// API routes
 app.use('/api/documents', documentRoutes);
 app.use('/api/workflow', workflowRoutes);
 app.use('/api/claude', claudeRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/files', fileMetadataRoutes);
+app.use('/api/tags', tagRoutes);
 
 // Root route
 app.get('/', (req, res) => {

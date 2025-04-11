@@ -9,4 +9,7 @@ router.get('/metadata/:filePath', fileController.getFileMetadata);
 // Add the new route for file download
 router.get('/download/:filePath', fileController.downloadFile);
 
+// Add direct file serving route
+router.get('/serve/:filePath', fileController.serveFile);
+
 module.exports = router;

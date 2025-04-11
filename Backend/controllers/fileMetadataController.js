@@ -1,6 +1,5 @@
 /**
- * Modified fileMetadataController.js to work with the test files
- * This version uses a more direct approach to file access
+ * Enhanced fileMetadataController.js with improved file handling
  */
 const fs = require('fs');
 const path = require('path');
@@ -27,8 +26,14 @@ exports.getFileMetadata = async (req, res) => {
       path.join(__dirname, '..', '..', filePath),
       // Path relative to backend
       path.join(__dirname, '..', filePath),
+      // Path relative to storage directory
+      path.join(__dirname, '..', 'storage', filePath.replace(/^\/files\//, '')),
       // Just the filename in test-files
-      path.join(__dirname, '..', 'test-files', path.basename(filePath))
+      path.join(__dirname, '..', 'test-files', path.basename(filePath)),
+      // Path for uploads directory
+      path.join(__dirname, '..', 'storage', 'uploads', path.basename(filePath)),
+      // Path for processed directory
+      path.join(__dirname, '..', 'storage', 'processed', path.basename(filePath))
     ];
     
     let fullPath = null;
@@ -68,7 +73,8 @@ exports.getFileMetadata = async (req, res) => {
         size: stats.size,
         type: mimeType,
         modifiedAt: stats.mtime,
-        createdAt: stats.ctime
+        createdAt: stats.ctime,
+        fullPath: fullPath // Include for debugging
       }
     });
   } catch (error) {
@@ -99,8 +105,14 @@ exports.downloadFile = async (req, res) => {
       path.join(__dirname, '..', '..', filePath),
       // Path relative to backend
       path.join(__dirname, '..', filePath),
+      // Path relative to storage directory
+      path.join(__dirname, '..', 'storage', filePath.replace(/^\/files\//, '')),
       // Just the filename in test-files
-      path.join(__dirname, '..', 'test-files', path.basename(filePath))
+      path.join(__dirname, '..', 'test-files', path.basename(filePath)),
+      // Path for uploads directory
+      path.join(__dirname, '..', 'storage', 'uploads', path.basename(filePath)),
+      // Path for processed directory
+      path.join(__dirname, '..', 'storage', 'processed', path.basename(filePath))
     ];
     
     let fullPath = null;
@@ -144,6 +156,79 @@ exports.downloadFile = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to download file',
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Serve a file directly
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+exports.serveFile = async (req, res) => {
+  try {
+    const filePath = decodeURIComponent(req.params.filePath);
+    console.log('Serving file directly:', filePath);
+    
+    // Try different path resolutions to find the file
+    const possiblePaths = [
+      // Direct path as provided
+      filePath,
+      // Path relative to project root
+      path.join(__dirname, '..', '..', filePath),
+      // Path relative to backend
+      path.join(__dirname, '..', filePath),
+      // Path relative to storage directory
+      path.join(__dirname, '..', 'storage', filePath.replace(/^\/files\//, '')),
+      // Just the filename in test-files
+      path.join(__dirname, '..', 'test-files', path.basename(filePath)),
+      // Path for uploads directory
+      path.join(__dirname, '..', 'storage', 'uploads', path.basename(filePath)),
+      // Path for processed directory
+      path.join(__dirname, '..', 'storage', 'processed', path.basename(filePath))
+    ];
+    
+    let fullPath = null;
+    let fileExists = false;
+    
+    // Try each possible path
+    for (const testPath of possiblePaths) {
+      console.log('Checking path:', testPath);
+      if (fs.existsSync(testPath)) {
+        fullPath = testPath;
+        fileExists = true;
+        console.log('File found at:', fullPath);
+        break;
+      }
+    }
+    
+    if (!fileExists) {
+      console.log('File not found in any of the checked locations');
+      return res.status(404).json({
+        success: false,
+        message: 'File not found'
+      });
+    }
+    
+    // Get file stats
+    const stats = await statAsync(fullPath);
+    
+    // Get file mime type
+    const mimeType = mime.lookup(fullPath) || 'application/octet-stream';
+    
+    // Set response headers
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Length', stats.size);
+    
+    // Stream the file to the response
+    const fileStream = fs.createReadStream(fullPath);
+    fileStream.pipe(res);
+  } catch (error) {
+    console.error('Error serving file:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to serve file',
       error: error.message
     });
   }
