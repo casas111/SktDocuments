@@ -544,22 +544,3 @@ export const downloadDocument = async (documentId: string): Promise<Blob> => {
     throw error;
   }
 };
-
-module.exports = {
-  uploadDocument,
-  getAllDocuments,
-  getDocumentById,
-  previewDocument,
-  downloadDocument,
-  deleteDocument,
-  getDocumentsByFolder,
-  moveDocumentToFolder,
-  getAllFolders,
-  createFolder,
-  deleteFolder,
-  getAllTags,
-  createTag,
-  addTagToDocument,
-  removeTagFromDocument,
-  toggleDocumentStarred
-};
