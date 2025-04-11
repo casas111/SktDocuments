@@ -380,11 +380,13 @@ const DocumentExplorer: React.FC<DocumentExplorerProps> = ({ viewType, folderId,
     try {
       const response = await createFolder(newFolderName, currentFolder?.id || 'root');
       if (response.success && response.data) {
-        setFolders([...folders, response.data]);
+        // Wait a short moment to ensure the backend has processed the creation
+        await new Promise(resolve => setTimeout(resolve, 500));
+        // Then refresh the folders list
+        await loadFolders();
         showNotification('Folder created successfully', 'success');
         setNewFolderName('');
         setShowCreateFolderDialog(false);
-        loadFolders(); // Refresh folders
       } else {
         showNotification('Failed to create folder', 'error');
       }

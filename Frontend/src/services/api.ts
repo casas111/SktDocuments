@@ -8,6 +8,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api
 // Document API endpoints
 const DOCUMENT_API_ENDPOINT = `${API_BASE_URL}/documents`;
 const FOLDER_API_ENDPOINT = `${API_BASE_URL}/documents/folders/all`;
+const CREATE_FOLDER_API_ENDPOINT = `${API_BASE_URL}/documents/folders`;
 const WORKFLOW_API_ENDPOINT = `${API_BASE_URL}/workflow`;
 
 // Response interface
@@ -234,7 +235,7 @@ export const getAllFolders = async (): Promise<ApiResponse<Folder[]>> => {
  */
 export const createFolder = async (name: string, parentId: string = 'root'): Promise<ApiResponse<Folder>> => {
   try {
-    const response = await axios.post(FOLDER_API_ENDPOINT, { name, parentId });
+    const response = await axios.post(CREATE_FOLDER_API_ENDPOINT, { name, parentId });
     
     return {
       success: true,
