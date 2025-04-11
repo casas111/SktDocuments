@@ -246,6 +246,8 @@ const DocumentsDrive = () => {
         setPathHistory([...pathHistory.slice(0, historyIndex + 1), storedPath]);
         setHistoryIndex(historyIndex + 1);
       }
+      // Clear the localStorage value after using it to prevent interference with normal navigation
+      localStorage.removeItem('currentDrivePath');
     }
     
     if (!isSearchMode) {
@@ -310,6 +312,9 @@ const DocumentsDrive = () => {
   
   // Navigation functions
   const navigateToFolder = (folderPath) => {
+    // Set a flag to indicate this is in-app navigation, not direct URL navigation
+    localStorage.setItem('inAppNavigation', 'true');
+    
     // Add to history if navigating forward
     if (historyIndex === pathHistory.length - 1) {
       setPathHistory([...pathHistory.slice(0, historyIndex + 1), folderPath]);
@@ -326,6 +331,8 @@ const DocumentsDrive = () => {
   
   const navigateBack = () => {
     if (historyIndex > 0) {
+      // Set a flag to indicate this is in-app navigation, not direct URL navigation
+      localStorage.setItem('inAppNavigation', 'true');
       setHistoryIndex(historyIndex - 1);
       setCurrentPath(pathHistory[historyIndex - 1]);
       setSelectedItems([]);
@@ -334,6 +341,8 @@ const DocumentsDrive = () => {
   
   const navigateForward = () => {
     if (historyIndex < pathHistory.length - 1) {
+      // Set a flag to indicate this is in-app navigation, not direct URL navigation
+      localStorage.setItem('inAppNavigation', 'true');
       setHistoryIndex(historyIndex + 1);
       setCurrentPath(pathHistory[historyIndex + 1]);
       setSelectedItems([]);
@@ -341,6 +350,8 @@ const DocumentsDrive = () => {
   };
   
   const navigateHome = () => {
+    // Set a flag to indicate this is in-app navigation, not direct URL navigation
+    localStorage.setItem('inAppNavigation', 'true');
     navigateToFolder('/');
   };
   

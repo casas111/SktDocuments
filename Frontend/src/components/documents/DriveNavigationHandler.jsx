@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import DocumentsDrive from './components/documents/DocumentsDrive';
+import DocumentsDrive from './DocumentsDrive';
 
 const DriveNavigationHandler = () => {
   const location = useLocation();
@@ -10,8 +10,15 @@ const DriveNavigationHandler = () => {
     // Extract the path from the URL
     const path = location.pathname.replace('/drive', '') || '/';
     
-    // Store the current path in localStorage for the DocumentsDrive component to use
-    localStorage.setItem('currentDrivePath', path);
+    // Only set the path in localStorage if it's coming from a direct URL navigation
+    // This prevents interference with normal in-app folder navigation
+    const isDirectUrlNavigation = !localStorage.getItem('inAppNavigation');
+    if (isDirectUrlNavigation) {
+      localStorage.setItem('currentDrivePath', path);
+    }
+    
+    // Clear the flag used to identify in-app navigation
+    localStorage.removeItem('inAppNavigation');
     
   }, [location.pathname]);
   
