@@ -1,120 +1,101 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Paper, 
+import {
+  Box,
+  Typography,
   Grid,
+  Paper,
   Button,
   IconButton,
+  Breadcrumbs,
   Divider,
   CircularProgress,
   Alert,
-  Snackbar,
-  Breadcrumbs,
-  Link,
-  Tooltip
+  Tooltip,
+  Snackbar
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
 import {
   Folder as FolderIcon,
-  Description as FileIcon,
+  InsertDriveFile as FileIcon,
   CreateNewFolder as NewFolderIcon,
   Upload as UploadIcon,
   Refresh as RefreshIcon,
-  Home as HomeIcon,
   NavigateNext as NavigateNextIcon
 } from '@mui/icons-material';
-import ImprovedFolderTree from './ImprovedFolderTree';
+import { styled } from '@mui/material/styles';
+import { useNavigate, useLocation } from 'react-router-dom';
 import unifiedDocumentService from '../../services/unifiedDocumentService';
+import ImprovedFolderTree from './ImprovedFolderTree';
+import EnhancedFolderManager from './EnhancedFolderManager';
 
 // Styled components
 const DocumentExplorerContainer = styled(Box)(({ theme }) => ({
-  height: '100%',
   display: 'flex',
   flexDirection: 'column',
-  backgroundColor: theme.palette.background.default,
-  borderRadius: theme.shape.borderRadius,
+  height: '100%',
   overflow: 'hidden'
-}));
-
-const ExplorerHeader = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(2),
-  backgroundColor: theme.palette.background.paper,
-  borderBottom: `1px solid ${theme.palette.divider}`,
 }));
 
 const ExplorerContent = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexGrow: 1,
-  overflow: 'hidden',
+  overflow: 'hidden'
 }));
 
-const FolderTreePanel = styled(Box)(({ theme }) => ({
-  width: 280,
-  borderRight: `1px solid ${theme.palette.divider}`,
-  overflow: 'auto',
+const SidePanel = styled(Box)(({ theme }) => ({
+  width: '280px',
   height: '100%',
-  backgroundColor: theme.palette.background.paper,
+  overflow: 'auto',
+  borderRight: `1px solid ${theme.palette.divider}`,
+  padding: theme.spacing(2)
 }));
 
 const ContentPanel = styled(Box)(({ theme }) => ({
   flexGrow: 1,
-  padding: theme.spacing(2),
-  overflow: 'auto',
   height: '100%',
+  overflow: 'auto',
+  padding: theme.spacing(2)
 }));
 
 const ActionBar = styled(Box)(({ theme }) => ({
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  marginBottom: theme.spacing(2),
-}));
-
-const FileCard = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(2),
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  cursor: 'pointer',
-  transition: 'all 0.2s ease',
-  '&:hover': {
-    transform: 'translateY(-4px)',
-    boxShadow: theme.shadows[4],
-  },
+  marginBottom: theme.spacing(2)
 }));
 
 const FolderCard = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(2),
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
+  textAlign: 'center',
   cursor: 'pointer',
-  transition: 'all 0.2s ease',
-  backgroundColor: theme.palette.primary.light,
-  color: theme.palette.primary.contrastText,
+  transition: 'all 0.2s',
   '&:hover': {
-    transform: 'translateY(-4px)',
-    boxShadow: theme.shadows[4],
-  },
+    backgroundColor: theme.palette.action.hover,
+    transform: 'translateY(-2px)'
+  }
+}));
+
+const FileCard = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(2),
+  textAlign: 'center',
+  cursor: 'pointer',
+  transition: 'all 0.2s',
+  '&:hover': {
+    backgroundColor: theme.palette.action.hover,
+    transform: 'translateY(-2px)'
+  }
 }));
 
 const IconContainer = styled(Box)(({ theme }) => ({
   display: 'flex',
   justifyContent: 'center',
-  alignItems: 'center',
-  width: 60,
-  height: 60,
-  marginBottom: theme.spacing(1),
-  borderRadius: '50%',
-  backgroundColor: theme.palette.background.default,
+  marginBottom: theme.spacing(1)
 }));
 
 /**
  * Enhanced Document Explorer Component
  * 
- * This component provides a comprehensive file and folder explorer with
- * improved folder rendering and management capabilities.
+ * This component provides a complete document and folder management interface
+ * using the unified document service to ensure consistent behavior.
  */
 const EnhancedDocumentExplorer = () => {
   // State
@@ -123,10 +104,16 @@ const EnhancedDocumentExplorer = () => {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
-  const [breadcrumbs, setBreadcrumbs] = useState([{ name: 'Root', path: '/' }]);
+  const [notification, setNotification] = useState({
+    open: false,
+    message: '',
+    severity: 'info'
+  });
   
-  // Load folders and files on mount and when current path changes
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  // Load folders and files on mount and when path changes
   useEffect(() => {
     loadFolders();
     loadDirectoryContents(currentPath);
@@ -136,218 +123,163 @@ const EnhancedDocumentExplorer = () => {
   const loadFolders = async () => {
     try {
       setLoading(true);
-      setError(null);
-      
       const response = await unifiedDocumentService.getAllFolders();
       
       if (response.success && response.data) {
-        console.log('Loaded all folders:', response.data);
         setFolders(response.data);
       } else {
-        console.error('Error loading folders:', response.error);
-        setError('Failed to load folders: ' + (response.error || 'Unknown error'));
+        setError(response.error || 'Failed to load folders');
       }
     } catch (err) {
-      console.error('Exception loading folders:', err);
-      setError('Error loading folders: ' + err.message);
+      console.error('Error loading folders:', err);
+      setError(err.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
   };
   
-  // Load contents of the current directory
+  // Load directory contents
   const loadDirectoryContents = async (dirPath) => {
     try {
       setLoading(true);
-      setError(null);
-      
       const response = await unifiedDocumentService.getDirectoryContents(dirPath);
       
       if (response.success && response.data) {
-        console.log('Loaded directory contents:', response.data);
-        
         // Separate files and folders
-        const folderItems = response.data.filter(item => item.isDirectory);
-        const fileItems = response.data.filter(item => !item.isDirectory);
+        const allItems = response.data;
+        const folderItems = allItems.filter(item => item.isDirectory);
+        const fileItems = allItems.filter(item => !item.isDirectory);
         
         setFiles(fileItems);
-        
-        // Update breadcrumbs
-        updateBreadcrumbs(dirPath);
       } else {
-        console.error('Error loading directory contents:', response.error);
-        setError('Failed to load directory contents: ' + (response.error || 'Unknown error'));
+        setError(response.error || 'Failed to load directory contents');
       }
     } catch (err) {
-      console.error('Exception loading directory contents:', err);
-      setError('Error loading directory contents: ' + err.message);
+      console.error('Error loading directory contents:', err);
+      setError(err.message || 'An unexpected error occurred');
     } finally {
       setLoading(false);
     }
   };
   
-  // Update breadcrumbs based on current path
-  const updateBreadcrumbs = (path) => {
-    if (path === '/') {
-      setBreadcrumbs([{ name: 'Root', path: '/' }]);
-      return;
-    }
-    
-    const parts = path.split('/').filter(Boolean);
-    let currentPath = '';
-    const crumbs = [{ name: 'Root', path: '/' }];
-    
-    parts.forEach(part => {
-      currentPath += '/' + part;
-      crumbs.push({
-        name: part,
-        path: currentPath
-      });
-    });
-    
-    setBreadcrumbs(crumbs);
-  };
-  
-  // Navigate to a folder
+  // Navigate to folder
   const navigateToFolder = (path) => {
-    console.log('Navigating to folder:', path);
     setCurrentPath(path);
   };
   
   // Handle folder creation
   const handleFolderCreated = () => {
-    console.log('Folder created, refreshing...');
+    // Refresh folders and current directory
     loadFolders();
     loadDirectoryContents(currentPath);
-    showNotification('Folder created successfully', 'success');
-  };
-  
-  // Handle folder rename
-  const handleFolderRenamed = () => {
-    console.log('Folder renamed, refreshing...');
-    loadFolders();
-    loadDirectoryContents(currentPath);
-    showNotification('Folder renamed successfully', 'success');
-  };
-  
-  // Handle folder deletion
-  const handleFolderDeleted = () => {
-    console.log('Folder deleted, refreshing...');
-    loadFolders();
-    loadDirectoryContents(currentPath);
-    showNotification('Folder deleted successfully', 'success');
-  };
-  
-  // Handle folder move
-  const handleFolderMoved = () => {
-    console.log('Folder moved, refreshing...');
-    loadFolders();
-    loadDirectoryContents(currentPath);
-    showNotification('Folder moved successfully', 'success');
+    
+    // Show notification
+    setNotification({
+      open: true,
+      message: 'Folder created successfully',
+      severity: 'success'
+    });
   };
   
   // Refresh current directory
   const refreshCurrentDirectory = () => {
     loadFolders();
     loadDirectoryContents(currentPath);
-    showNotification('Content refreshed', 'info');
-  };
-  
-  // Show notification
-  const showNotification = (message, severity = 'info') => {
+    
+    // Show notification
     setNotification({
       open: true,
-      message,
-      severity
+      message: 'Directory refreshed',
+      severity: 'info'
     });
+  };
+  
+  // Navigate to file
+  const navigateToFile = (filePath) => {
+    navigate(`/file/${encodeURIComponent(filePath)}`);
   };
   
   // Close notification
   const closeNotification = () => {
-    setNotification(prev => ({
-      ...prev,
+    setNotification({
+      ...notification,
       open: false
-    }));
+    });
   };
   
-  // Render breadcrumbs
-  const renderBreadcrumbs = () => {
-    return (
-      <Breadcrumbs 
-        separator={<NavigateNextIcon fontSize="small" />}
-        aria-label="breadcrumb"
-      >
-        {breadcrumbs.map((crumb, index) => {
-          const isLast = index === breadcrumbs.length - 1;
-          
-          return isLast ? (
-            <Typography key={crumb.path} color="text.primary" fontWeight="bold">
-              {crumb.name}
-            </Typography>
-          ) : (
-            <Link
-              key={crumb.path}
-              color="inherit"
-              href="#"
-              onClick={(e) => {
-                e.preventDefault();
-                navigateToFolder(crumb.path);
-              }}
-            >
-              {index === 0 ? <HomeIcon fontSize="small" sx={{ mr: 0.5 }} /> : null}
-              {crumb.name}
-            </Link>
-          );
-        })}
-      </Breadcrumbs>
-    );
+  // Generate breadcrumbs from path
+  const generateBreadcrumbs = () => {
+    if (currentPath === '/') {
+      return [{ name: 'Root', path: '/' }];
+    }
+    
+    const parts = currentPath.split('/').filter(Boolean);
+    let currentBreadcrumb = '';
+    const breadcrumbs = [{ name: 'Root', path: '/' }];
+    
+    parts.forEach(part => {
+      currentBreadcrumb += '/' + part;
+      breadcrumbs.push({
+        name: part,
+        path: currentBreadcrumb
+      });
+    });
+    
+    return breadcrumbs;
   };
   
   return (
     <DocumentExplorerContainer>
-      <ExplorerHeader>
-        <Typography variant="h6" gutterBottom>
-          Document Explorer
-        </Typography>
-        
-        {renderBreadcrumbs()}
-      </ExplorerHeader>
-      
       <ExplorerContent>
-        <FolderTreePanel>
+        {/* Folder tree sidebar */}
+        <SidePanel>
           <ImprovedFolderTree
-            folders={folders}
             currentPath={currentPath}
             onNavigate={navigateToFolder}
-            onFolderCreated={handleFolderCreated}
-            onFolderRenamed={handleFolderRenamed}
-            onFolderDeleted={handleFolderDeleted}
-            onFolderMoved={handleFolderMoved}
+            onRefresh={refreshCurrentDirectory}
           />
-        </FolderTreePanel>
+        </SidePanel>
         
+        {/* Main content */}
         <ContentPanel>
+          {/* Breadcrumbs */}
+          <Breadcrumbs 
+            separator={<NavigateNextIcon fontSize="small" />}
+            aria-label="folder navigation"
+            sx={{ mb: 2 }}
+          >
+            {generateBreadcrumbs().map((crumb, index, array) => {
+              const isLast = index === array.length - 1;
+              
+              return isLast ? (
+                <Typography key={crumb.path} color="text.primary">
+                  {crumb.name}
+                </Typography>
+              ) : (
+                <Button
+                  key={crumb.path}
+                  color="inherit"
+                  onClick={() => navigateToFolder(crumb.path)}
+                  sx={{ textTransform: 'none' }}
+                >
+                  {crumb.name}
+                </Button>
+              );
+            })}
+          </Breadcrumbs>
+          
           {/* Action bar */}
           <ActionBar>
             <Box>
               <Button
                 variant="contained"
-                startIcon={<UploadIcon />}
+                startIcon={<NewFolderIcon />}
                 sx={{ mr: 1 }}
               >
-                Upload Files
-              </Button>
-              
-              <Button
-                variant="outlined"
-                startIcon={<NewFolderIcon />}
-                onClick={() => {
-                  // This will be handled by the folder tree component
-                  // Just navigate to the current path to ensure it's visible
-                  navigateToFolder(currentPath);
-                }}
-              >
-                New Folder
+                <EnhancedFolderManager
+                  currentPath={currentPath}
+                  onFolderCreated={handleFolderCreated}
+                />
               </Button>
             </Box>
             
@@ -412,7 +344,7 @@ const EnhancedDocumentExplorer = () => {
                   <Grid container spacing={2}>
                     {files.map(file => (
                       <Grid item xs={6} sm={4} md={3} lg={2} key={file.path}>
-                        <FileCard>
+                        <FileCard onClick={() => navigateToFile(file.path)}>
                           <IconContainer>
                             <FileIcon fontSize="large" />
                           </IconContainer>
@@ -447,17 +379,10 @@ const EnhancedDocumentExplorer = () => {
                       Upload Files
                     </Button>
                     
-                    <Button
-                      variant="outlined"
-                      startIcon={<NewFolderIcon />}
-                      onClick={() => {
-                        // This will be handled by the folder tree component
-                        // Just navigate to the current path to ensure it's visible
-                        navigateToFolder(currentPath);
-                      }}
-                    >
-                      New Folder
-                    </Button>
+                    <EnhancedFolderManager
+                      currentPath={currentPath}
+                      onFolderCreated={handleFolderCreated}
+                    />
                   </Box>
                 </Box>
               )}

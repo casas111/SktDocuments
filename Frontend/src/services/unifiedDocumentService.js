@@ -1,100 +1,68 @@
-// Unified API Service for Document and Folder Management
-// This service combines functionality from both fileService.js and api.ts
-// to ensure consistent folder and document handling
-
-import axios from 'axios';
-
-// API base URLs
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
-const FILES_API = `${API_URL}/files`;
-const DOCUMENTS_API = `${API_URL}/documents`;
-
 /**
- * Unified service for document and folder management
+ * Unified Document Service
+ * 
+ * This service provides a unified interface for document and folder operations,
+ * integrating both the documents API and files API to ensure consistent behavior.
  */
+import axios from 'axios';
+import { API_BASE_URL } from '../config';
+
+// API endpoints
+const DOCUMENTS_API = `${API_BASE_URL}/documents`;
+const FILES_API = `${API_BASE_URL}/files`;
+
 class UnifiedDocumentService {
   /**
    * Get all folders
    * 
-   * @returns {Promise} - Promise with all folders
+   * @returns {Promise} - Promise with folders data
    */
   async getAllFolders() {
     try {
       // First try the documents API
-      const response = await axios.get(`${DOCUMENTS_API}/folders/all`);
+      const documentsResponse = await axios.get(`${DOCUMENTS_API}/folders/all`);
       
-      if (response.data && response.data.folders) {
-        console.log('Folders retrieved from documents API:', response.data.folders);
+      if (documentsResponse.data && Array.isArray(documentsResponse.data)) {
+        const folders = documentsResponse.data.map(folder => ({
+          ...folder,
+          path: folder.id, // Ensure path property exists for compatibility
+          parent: folder.parentId === 'root' ? '/' : folder.parentId
+        }));
+        
+        console.log('Folders retrieved from documents API:', folders);
         return {
           success: true,
-          data: response.data.folders
+          data: folders
         };
       }
-      
-      return {
-        success: false,
-        error: 'No folders found in response'
-      };
     } catch (documentsError) {
       console.warn('Error getting folders from documents API, falling back to files API:', documentsError);
-      
-      try {
-        // Fall back to the files API
-        const filesResponse = await axios.get(`${FILES_API}`, {
-          params: { dirPath: '' }
-        });
-        
-        if (filesResponse.data && filesResponse.data.data) {
-          // Transform the response to match the expected format
-          const folders = filesResponse.data.data
-            .filter(item => item.isDirectory)
-            .map(folder => ({
-              id: folder.path,
-              name: folder.name,
-              parentId: this._getParentId(folder.path),
-              createdAt: folder.createdAt,
-              updatedAt: folder.modifiedAt
-            }));
-          
-          console.log('Folders retrieved from files API:', folders);
-          return {
-            success: true,
-            data: folders
-          };
-        }
-        
-        return {
-          success: false,
-          error: 'No folders found in files API response'
-        };
-      } catch (filesError) {
-        console.error('Error getting folders from files API:', filesError);
-        return {
-          success: false,
-          error: filesError.message || 'Failed to retrieve folders'
-        };
-      }
     }
-  }
-  
-  /**
-   * Get folders by parent ID
-   * 
-   * @param {string} parentId - Parent folder ID
-   * @returns {Promise} - Promise with child folders
-   */
-  async getFoldersByParent(parentId) {
+    
+    // Fall back to files API
     try {
-      // First try the documents API
-      const response = await axios.get(`${DOCUMENTS_API}/folders`, {
-        params: { parentId }
+      const filesResponse = await axios.get(FILES_API, {
+        params: { dirPath: '/' }
       });
       
-      if (response.data && Array.isArray(response.data)) {
-        console.log('Child folders retrieved from documents API:', response.data);
+      if (filesResponse.data && filesResponse.data.success && filesResponse.data.data) {
+        // Filter to only include directories
+        const folders = filesResponse.data.data
+          .filter(item => item.isDirectory)
+          .map(folder => ({
+            id: folder.path,
+            name: folder.name,
+            path: folder.path,
+            parent: this._getParentPath(folder.path),
+            parentId: this._getParentPath(folder.path) === '/' ? 'root' : this._getParentPath(folder.path),
+            createdAt: folder.createdAt,
+            updatedAt: folder.modifiedAt
+          }));
+        
+        console.log('Folders retrieved from files API:', folders);
         return {
           success: true,
-          data: response.data
+          data: folders
         };
       }
       
@@ -102,87 +70,53 @@ class UnifiedDocumentService {
         success: false,
         error: 'No folders found in response'
       };
-    } catch (documentsError) {
-      console.warn('Error getting child folders from documents API, falling back to files API:', documentsError);
-      
-      try {
-        // Fall back to the files API
-        // Convert parentId to dirPath format
-        const dirPath = parentId === 'root' ? '' : parentId;
-        
-        const filesResponse = await axios.get(`${FILES_API}`, {
-          params: { dirPath }
-        });
-        
-        if (filesResponse.data && filesResponse.data.data) {
-          // Transform the response to match the expected format
-          const folders = filesResponse.data.data
-            .filter(item => item.isDirectory)
-            .map(folder => ({
-              id: folder.path,
-              name: folder.name,
-              parentId: this._getParentId(folder.path),
-              createdAt: folder.createdAt,
-              updatedAt: folder.modifiedAt
-            }));
-          
-          console.log('Child folders retrieved from files API:', folders);
-          return {
-            success: true,
-            data: folders
-          };
-        }
-        
-        return {
-          success: false,
-          error: 'No folders found in files API response'
-        };
-      } catch (filesError) {
-        console.error('Error getting child folders from files API:', filesError);
-        return {
-          success: false,
-          error: filesError.message || 'Failed to retrieve child folders'
-        };
-      }
+    } catch (filesError) {
+      console.error('Error getting folders from files API:', filesError);
+      return {
+        success: false,
+        error: filesError.message || 'Failed to retrieve folders'
+      };
     }
   }
   
   /**
    * Create a new folder
    * 
-   * @param {string} folderName - Name of the new folder
+   * @param {string} name - Folder name
    * @param {string} parentId - Parent folder ID
    * @returns {Promise} - Promise with created folder data
    */
-  async createFolder(folderName, parentId = 'root') {
+  async createFolder(name, parentId = 'root') {
+    // First try the documents API
     try {
-      // First try the documents API
       const documentsResponse = await axios.post(`${DOCUMENTS_API}/folders`, {
-        name: folderName,
+        name,
         parentId
       });
       
       if (documentsResponse.data && documentsResponse.data.folder) {
-        console.log('Folder created in documents API:', documentsResponse.data.folder);
+        const folder = documentsResponse.data.folder;
         
         // Also create in files API for consistency
         try {
-          // Convert parentId to folderPath format
-          const folderPath = parentId === 'root' ? '' : parentId;
-          
+          const parentPath = parentId === 'root' ? '/' : parentId;
           await axios.post(`${FILES_API}/folder`, {
-            folderPath,
-            folderName
+            folderName: name,
+            parentPath
           });
-          
           console.log('Folder also created in files API');
         } catch (filesError) {
           console.warn('Error creating folder in files API (continuing anyway):', filesError);
         }
         
+        console.log('Folder created in documents API:', folder);
         return {
           success: true,
-          data: documentsResponse.data.folder,
+          data: {
+            ...folder,
+            path: folder.id, // Ensure path property exists for compatibility
+            parent: folder.parentId === 'root' ? '/' : folder.parentId
+          },
           message: documentsResponse.data.message || 'Folder created successfully'
         };
       }
@@ -192,21 +126,21 @@ class UnifiedDocumentService {
       console.warn('Error creating folder in documents API, falling back to files API:', documentsError);
       
       try {
-        // Convert parentId to folderPath format
-        const folderPath = parentId === 'root' ? '' : parentId;
-        
+        const parentPath = parentId === 'root' ? '/' : parentId;
         const filesResponse = await axios.post(`${FILES_API}/folder`, {
-          folderPath,
-          folderName
+          folderName: name,
+          parentPath
         });
         
-        if (filesResponse.data && filesResponse.data.success) {
+        if (filesResponse.data && filesResponse.data.success && filesResponse.data.data) {
           // Transform the response to match the expected format
           const newFolder = filesResponse.data.data;
           const folder = {
             id: newFolder.path,
             name: newFolder.name,
-            parentId: this._getParentId(newFolder.path),
+            path: newFolder.path,
+            parent: this._getParentPath(newFolder.path),
+            parentId: this._getParentPath(newFolder.path) === '/' ? 'root' : this._getParentPath(newFolder.path),
             createdAt: newFolder.createdAt,
             updatedAt: newFolder.modifiedAt
           };
@@ -349,20 +283,60 @@ class UnifiedDocumentService {
   }
   
   /**
-   * Helper method to extract parent ID from path
+   * Get file metadata and preview URL
+   * 
+   * @param {string} filePath - File path
+   * @returns {Promise} - Promise with file metadata and preview URL
+   */
+  async getFileInfo(filePath) {
+    try {
+      const response = await axios.get(`${FILES_API}/metadata/${encodeURIComponent(filePath)}`);
+      
+      if (response.data && response.data.success && response.data.data) {
+        const fileData = response.data.data;
+        
+        // Add preview URL for viewable file types
+        if (fileData.type.startsWith('image/') || fileData.type === 'application/pdf') {
+          fileData.previewUrl = `${FILES_API}/preview/${encodeURIComponent(filePath)}`;
+        }
+        
+        // Add download URL
+        fileData.downloadUrl = `${FILES_API}/download/${encodeURIComponent(filePath)}`;
+        
+        return {
+          success: true,
+          data: fileData
+        };
+      }
+      
+      return {
+        success: false,
+        error: 'No file data found in response'
+      };
+    } catch (error) {
+      console.error('Error getting file info:', error);
+      return {
+        success: false,
+        error: error.message || 'Failed to retrieve file information'
+      };
+    }
+  }
+  
+  /**
+   * Helper method to extract parent path from path
    * 
    * @param {string} path - Folder path
-   * @returns {string} - Parent ID
+   * @returns {string} - Parent path
    * @private
    */
-  _getParentId(path) {
-    if (!path || path === '/') return 'root';
+  _getParentPath(path) {
+    if (!path || path === '/') return '/';
     
     const parts = path.split('/').filter(Boolean);
-    if (parts.length <= 1) return 'root';
+    if (parts.length <= 1) return '/';
     
     parts.pop(); // Remove the last part (current folder name)
-    return parts.length === 0 ? 'root' : '/' + parts.join('/');
+    return '/' + parts.join('/');
   }
 }
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -19,14 +19,15 @@ import {
 } from '@mui/icons-material';
 import WorkflowBuilder from '../workflow/WorkflowBuilder';
 import DocumentDrive from '../documents/DocumentDrive';
-import FileViewer from '../FileViewer';
+import EnhancedDocumentExplorer from '../documents/EnhancedDocumentExplorer';
+import EnhancedFileViewer from '../documents/EnhancedFileViewer';
 
 const drawerWidth = 240;
 
-const MainLayout: React.FC = () => {
+const MainLayout = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = React.useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -101,15 +102,15 @@ const MainLayout: React.FC = () => {
         }}
       >
         <Routes>
-          <Route path="/" element={<DocumentDrive />} />
-          <Route path="/documents/*" element={<DocumentDrive />} />
+          <Route path="/" element={<EnhancedDocumentExplorer />} />
+          <Route path="/documents/*" element={<EnhancedDocumentExplorer />} />
           <Route path="/workflow" element={<WorkflowBuilder />} />
           <Route path="/workflow/:id" element={<WorkflowBuilder />} />
-          <Route path="/file/:fileId" element={<FileViewer />} />
+          <Route path="/file/:fileId" element={<EnhancedFileViewer />} />
         </Routes>
       </Box>
     </Box>
   );
 };
 
-export default MainLayout; 
+export default MainLayout;
