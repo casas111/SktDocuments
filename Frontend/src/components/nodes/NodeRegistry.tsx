@@ -1,7 +1,12 @@
 import React from 'react';
-import { Position } from 'reactflow';
+import { NodeTypes } from 'reactflow';
+import CommunicationNode from './CommunicationNode';
+import ComparisonNode from './ComparisonNode';
+import SimetrikNode from './SimetrikNode';
+import RedNode from './RedNode';
+import EnhancedTranslationNode from './EnhancedTranslationNode';
 
-// Node types
+// Node type constants
 export const NODE_TYPES = {
   communicationNode: 'communicationNode',
   translationNode: 'translationNode',
@@ -10,32 +15,44 @@ export const NODE_TYPES = {
   redNode: 'redNode',
 };
 
-// Node templates with default settings
-export const getNodeDefaults = (type: string, position: { x: number, y: number }, label: string = '') => {
-  const defaultLabel = label || getDefaultLabel(type);
-  
-  const baseNode = {
-    position,
-    data: {
-      label: defaultLabel,
-    },
-    type: type,
-    style: {
-      border: '1px solid #ddd',
-      padding: 10,
-      borderRadius: 5,
-      width: 220,
-    },
-    sourcePosition: Position.Right,
-    targetPosition: Position.Left,
-    draggable: true,
-    selectable: true,
-  };
+// Node type components mapping
+export const nodeTypes: NodeTypes = {
+  [NODE_TYPES.communicationNode]: CommunicationNode,
+  [NODE_TYPES.translationNode]: EnhancedTranslationNode, // Updated to use EnhancedTranslationNode
+  [NODE_TYPES.simetrikNode]: SimetrikNode,
+  [NODE_TYPES.comparisonNode]: ComparisonNode,
+  [NODE_TYPES.redNode]: RedNode,
+};
+
+// Base node configuration
+export const baseNode = {
+  style: {
+    width: 250,
+    padding: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+  },
+  data: {
+    label: 'Node',
+    description: 'Node description',
+    icon: 'default',
+    capabilities: [],
+  },
+};
+
+// Get node defaults based on type
+export const getNodeDefaults = (type: string, position: { x: number, y: number }, label?: string) => {
+  const id = Math.random().toString(36).substring(2, 9);
   
   switch (type) {
     case NODE_TYPES.communicationNode:
       return {
-        ...baseNode,
+        id,
+        type,
+        position,
         style: {
           ...baseNode.style,
           backgroundColor: '#e3f2fd',
@@ -43,15 +60,18 @@ export const getNodeDefaults = (type: string, position: { x: number, y: number }
         },
         data: {
           ...baseNode.data,
+          label: label || getDefaultLabel(type),
           icon: 'communication',
-          description: 'Handles communication between systems',
-          capabilities: ['HTTP', 'WebSocket', 'MQTT'],
+          description: 'Handles external communication',
+          capabilities: ['API', 'Webhook', 'Email'],
         },
       };
     
     case NODE_TYPES.translationNode:
       return {
-        ...baseNode,
+        id,
+        type,
+        position,
         style: {
           ...baseNode.style,
           backgroundColor: '#e8f5e9',
@@ -59,15 +79,18 @@ export const getNodeDefaults = (type: string, position: { x: number, y: number }
         },
         data: {
           ...baseNode.data,
-          icon: 'translation',
-          description: 'Translates data between formats',
-          capabilities: ['JSON', 'XML', 'CSV'],
+          label: label || getDefaultLabel(type),
+          icon: 'translate',
+          description: 'Transforms documents using a template format with Claude AI',
+          capabilities: ['Document Transformation', 'Template Processing', 'AI Integration'],
         },
       };
     
     case NODE_TYPES.simetrikNode:
       return {
-        ...baseNode,
+        id,
+        type,
+        position,
         style: {
           ...baseNode.style,
           backgroundColor: '#f3e5f5',
@@ -75,15 +98,18 @@ export const getNodeDefaults = (type: string, position: { x: number, y: number }
         },
         data: {
           ...baseNode.data,
-          icon: 'simetrik',
+          label: label || getDefaultLabel(type),
+          icon: 'cloud',
           description: 'Connects to Simetrik SaaS platform',
-          capabilities: ['API', 'Data Sync', 'Authentication'],
+          capabilities: ['Integration', 'Data Processing', 'Analytics'],
         },
       };
     
     case NODE_TYPES.comparisonNode:
       return {
-        ...baseNode,
+        id,
+        type,
+        position,
         style: {
           ...baseNode.style,
           backgroundColor: '#fff3e0',
@@ -91,15 +117,18 @@ export const getNodeDefaults = (type: string, position: { x: number, y: number }
         },
         data: {
           ...baseNode.data,
-          icon: 'comparison',
-          description: 'Compares data from multiple sources',
-          capabilities: ['Diff', 'Merge', 'Validation'],
+          label: label || getDefaultLabel(type),
+          icon: 'compare',
+          description: 'Compares and validates data',
+          capabilities: ['Validation', 'Comparison', 'Verification'],
         },
       };
-      
+    
     case NODE_TYPES.redNode:
       return {
-        ...baseNode,
+        id,
+        type,
+        position,
         style: {
           ...baseNode.style,
           backgroundColor: '#ffebee',
@@ -124,7 +153,7 @@ const getDefaultLabel = (type: string): string => {
     case NODE_TYPES.communicationNode:
       return 'Communication Node';
     case NODE_TYPES.translationNode:
-      return 'Translation Node';
+      return 'Document Translation';
     case NODE_TYPES.simetrikNode:
       return 'Simetrik SaaS Node';
     case NODE_TYPES.comparisonNode:
@@ -143,7 +172,7 @@ export const WORKFLOW_TEMPLATES = {
     description: 'A simple workflow with one of each node type',
     nodes: [
       getNodeDefaults(NODE_TYPES.communicationNode, { x: 100, y: 100 }, 'API Gateway'),
-      getNodeDefaults(NODE_TYPES.translationNode, { x: 350, y: 100 }, 'JSON Transformer'),
+      getNodeDefaults(NODE_TYPES.translationNode, { x: 350, y: 100 }, 'Document Translator'),
       getNodeDefaults(NODE_TYPES.simetrikNode, { x: 600, y: 100 }, 'Simetrik Connector'),
       getNodeDefaults(NODE_TYPES.comparisonNode, { x: 850, y: 100 }, 'Data Validator'),
     ],
@@ -159,7 +188,7 @@ export const WORKFLOW_TEMPLATES = {
     nodes: [
       getNodeDefaults(NODE_TYPES.communicationNode, { x: 100, y: 100 }, 'REST API'),
       getNodeDefaults(NODE_TYPES.communicationNode, { x: 100, y: 250 }, 'WebSocket'),
-      getNodeDefaults(NODE_TYPES.translationNode, { x: 350, y: 175 }, 'Data Transformer'),
+      getNodeDefaults(NODE_TYPES.translationNode, { x: 350, y: 175 }, 'Document Transformer'),
       getNodeDefaults(NODE_TYPES.simetrikNode, { x: 600, y: 100 }, 'Simetrik API'),
       getNodeDefaults(NODE_TYPES.simetrikNode, { x: 600, y: 250 }, 'Simetrik Database'),
       getNodeDefaults(NODE_TYPES.comparisonNode, { x: 850, y: 175 }, 'Result Validator'),
@@ -171,6 +200,19 @@ export const WORKFLOW_TEMPLATES = {
       { id: 'e3-5', source: '3', target: '5', animated: true },
       { id: 'e4-6', source: '4', target: '6', animated: true },
       { id: 'e5-6', source: '5', target: '6', animated: true },
+    ],
+  },
+  translationWorkflow: {
+    name: 'Document Translation Workflow',
+    description: 'A workflow focused on document translation with Claude AI',
+    nodes: [
+      getNodeDefaults(NODE_TYPES.communicationNode, { x: 100, y: 150 }, 'Document Source'),
+      getNodeDefaults(NODE_TYPES.translationNode, { x: 350, y: 150 }, 'Document Translator'),
+      getNodeDefaults(NODE_TYPES.simetrikNode, { x: 600, y: 150 }, 'Output Processor'),
+    ],
+    edges: [
+      { id: 'e1-2', source: '1', target: '2', animated: true },
+      { id: 'e2-3', source: '2', target: '3', animated: true },
     ],
   },
 };

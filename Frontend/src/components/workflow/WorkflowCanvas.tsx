@@ -1,399 +1,507 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import ReactFlow, {
-  MiniMap,
   Controls,
   Background,
   useNodesState,
   useEdgesState,
   addEdge,
-  Node,
-  Edge,
   Connection,
+  Edge,
+  Node,
   NodeChange,
   EdgeChange,
+  NodeTypes,
   Panel,
-  ConnectionLineType,
-  MarkerType,
-  useReactFlow
+  ReactFlowProvider,
+  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import { Box, Button, Tooltip, CircularProgress, Snackbar, Alert } from '@mui/material';
+import {
+  Box,
+  Button,
+  Typography,
+  IconButton,
+  Tooltip,
+  Menu,
+  MenuItem,
+  Divider,
+  Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Select,
+  FormControl,
+  InputLabel,
+  Snackbar,
+  Alert,
+} from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import SaveIcon from '@mui/icons-material/Save';
 import DeleteIcon from '@mui/icons-material/Delete';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
-import CenterFocusStrongIcon from '@mui/icons-material/CenterFocusStrong';
-import { NODE_TYPES } from '../nodes/NodeRegistry';
+import FitScreenIcon from '@mui/icons-material/FitScreen';
+import TemplateIcon from '@mui/icons-material/AutoAwesome';
+import styled from '@emotion/styled';
+import { nodeTypes, NODE_TYPES, getNodeDefaults, WORKFLOW_TEMPLATES, validateWorkflow } from '../nodes/NodeRegistry';
 
-// Import node components
-import CommunicationNode from '../nodes/CommunicationNode';
-import TranslationNode from '../nodes/TranslationNode';
-import SimetrikNode from '../nodes/SimetrikNode';
-import ComparisonNode from '../nodes/ComparisonNode';
-import RedNode from '../nodes/RedNode';
+// Styled components
+const WorkflowCanvasContainer = styled(Box)`
+  width: 100%;
+  height: 100%;
+  min-height: 600px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+`;
 
-// Define node types for ReactFlow
-const nodeTypes = {
-  [NODE_TYPES.communicationNode]: CommunicationNode,
-  [NODE_TYPES.translationNode]: TranslationNode,
-  [NODE_TYPES.simetrikNode]: SimetrikNode,
-  [NODE_TYPES.comparisonNode]: ComparisonNode,
-  [NODE_TYPES.redNode]: RedNode,
-};
+const CanvasControls = styled(Box)`
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
 
-// Define custom edge styles
-const edgeOptions = {
-  animated: true,
-  style: {
-    stroke: '#555',
-    strokeWidth: 2,
-  },
-  type: 'smoothstep',
-  markerEnd: {
-    type: MarkerType.ArrowClosed,
-    width: 20,
-    height: 20,
-    color: '#555',
-  },
-};
+const NodePalette = styled(Paper)`
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 5;
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(5px);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+`;
+
+const PaletteItem = styled(Button)`
+  text-transform: none;
+  justify-content: flex-start;
+  padding: 8px 16px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+`;
+
+const WorkflowInfo = styled(Box)`
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  z-index: 5;
+  background-color: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(5px);
+  padding: 8px 16px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  max-width: 300px;
+`;
 
 interface WorkflowCanvasProps {
   initialNodes?: Node[];
   initialEdges?: Edge[];
-  onNodesChange?: (nodes: Node[]) => void;
-  onEdgesChange?: (edges: Edge[]) => void;
+  onSave?: (nodes: Node[], edges: Edge[]) => void;
   readOnly?: boolean;
 }
 
-const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({ 
-  initialNodes = [], 
+const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
+  initialNodes = [],
   initialEdges = [],
-  onNodesChange,
-  onEdgesChange,
-  readOnly = false
+  onSave,
+  readOnly = false,
 }) => {
-  const [nodes, setNodes, onNodesChangeInternal] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChangeInternal] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [notification, setNotification] = useState<{
-    open: boolean;
-    message: string;
-    severity: 'success' | 'info' | 'warning' | 'error';
-  }>({
-    open: false,
-    message: '',
-    severity: 'info'
-  });
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
+  const [templateMenuAnchor, setTemplateMenuAnchor] = useState<null | HTMLElement>(null);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [workflowName, setWorkflowName] = useState('My Workflow');
+  const [workflowDescription, setWorkflowDescription] = useState('');
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+  const [validationResult, setValidationResult] = useState<{ valid: boolean; errors: string[] }>({ valid: true, errors: [] });
   
+  const reactFlowInstance = useReactFlow();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const [reactFlowInstance, setReactFlowInstance] = useState<any>(null);
-  const { fitView } = useReactFlow();
   
-  // Use memo to prevent unnecessary re-renders
-  const memoizedNodeTypes = useMemo(() => nodeTypes, []);
-  const memoizedEdgeOptions = useMemo(() => edgeOptions, []);
-
-  // Update nodes when initialNodes change
+  // Initialize with a default workflow if empty
   useEffect(() => {
-    setNodes(initialNodes);
-  }, [initialNodes, setNodes]);
-
-  // Update edges when initialEdges change
+    if (initialNodes.length === 0 && initialEdges.length === 0) {
+      // Use the translation workflow template as default
+      const template = WORKFLOW_TEMPLATES.translationWorkflow;
+      setNodes(template.nodes);
+      setEdges(template.edges);
+      setWorkflowName(template.name);
+      setWorkflowDescription(template.description);
+    }
+  }, [initialNodes, initialEdges, setNodes, setEdges]);
+  
+  // Validate workflow when nodes or edges change
   useEffect(() => {
-    setEdges(initialEdges);
-  }, [initialEdges, setEdges]);
-
-  // Fit view when nodes change
-  useEffect(() => {
-    if (reactFlowInstance && nodes.length > 0) {
-      setTimeout(() => {
-        fitView({ padding: 0.2 });
-      }, 100);
-    }
-  }, [reactFlowInstance, nodes.length, fitView]);
-
-  // Handle node changes (position, selection, etc.) with debounce for smoother drag
-  const handleNodesChange = useCallback((changes: NodeChange[]) => {
-    onNodesChangeInternal(changes);
-    
-    // Always notify parent component of changes, even during dragging
-    // This ensures all node states are preserved
-    if (onNodesChange) {
-      // Use requestAnimationFrame for smoother updates
-      requestAnimationFrame(() => onNodesChange(nodes));
-    }
-  }, [nodes, onNodesChange, onNodesChangeInternal]);
-
-  // Handle edge changes
-  const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
-    onEdgesChangeInternal(changes);
-    if (onEdgesChange) {
-      // Use requestAnimationFrame for smoother updates
-      requestAnimationFrame(() => onEdgesChange(edges));
-    }
-  }, [edges, onEdgesChange, onEdgesChangeInternal]);
-
-  // Handle new connections between nodes
-  const handleConnect = useCallback((connection: Connection) => {
-    // Create a unique ID for the edge
-    const newEdge = {
-      ...connection,
-      id: `e${connection.source}-${connection.target}-${connection.sourceHandle}-${connection.targetHandle}`,
-      ...edgeOptions,
-      data: {
-        sourceHandle: connection.sourceHandle,
-        targetHandle: connection.targetHandle
-      }
-    };
-    
-    const updatedEdges = addEdge(newEdge, edges);
-    setEdges(updatedEdges);
-    
-    if (onEdgesChange) {
-      onEdgesChange(updatedEdges);
-    }
-    
-    showNotification('Connection created successfully', 'success');
-  }, [edges, setEdges, onEdgesChange]);
-
-  // Handle node selection
-  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    const result = validateWorkflow(nodes, edges);
+    setValidationResult(result);
+  }, [nodes, edges]);
+  
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
+    [setEdges]
+  );
+  
+  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
     setSelectedNode(node);
   }, []);
-
-  // Handle node deletion
+  
+  const onPaneClick = useCallback(() => {
+    setSelectedNode(null);
+  }, []);
+  
+  const handleAddNode = (type: string) => {
+    const position = reactFlowInstance.project({
+      x: Math.random() * 400 + 50,
+      y: Math.random() * 400 + 50,
+    });
+    
+    const newNode = getNodeDefaults(type, position);
+    setNodes((nds) => [...nds, newNode]);
+    setMenuAnchor(null);
+  };
+  
   const handleDeleteNode = useCallback(() => {
     if (selectedNode) {
-      const updatedNodes = nodes.filter(n => n.id !== selectedNode.id);
-      const updatedEdges = edges.filter(
-        e => e.source !== selectedNode.id && e.target !== selectedNode.id
-      );
-      
-      setNodes(updatedNodes);
-      setEdges(updatedEdges);
+      setNodes((nds) => nds.filter((node) => node.id !== selectedNode.id));
+      // Also remove any connected edges
+      setEdges((eds) => eds.filter((edge) => edge.source !== selectedNode.id && edge.target !== selectedNode.id));
       setSelectedNode(null);
-      
-      if (onNodesChange) {
-        onNodesChange(updatedNodes);
-      }
-      
-      if (onEdgesChange) {
-        onEdgesChange(updatedEdges);
-      }
-      
-      showNotification('Node deleted successfully', 'success');
     }
-  }, [selectedNode, nodes, edges, setNodes, setEdges, onNodesChange, onEdgesChange]);
-
-  // Handle zoom in
-  const handleZoomIn = useCallback(() => {
-    if (reactFlowInstance) {
-      reactFlowInstance.zoomIn();
-    }
-  }, [reactFlowInstance]);
-
-  // Handle zoom out
-  const handleZoomOut = useCallback(() => {
-    if (reactFlowInstance) {
-      reactFlowInstance.zoomOut();
-    }
-  }, [reactFlowInstance]);
-
-  // Handle fit view
-  const handleFitView = useCallback(() => {
-    if (reactFlowInstance) {
-      reactFlowInstance.fitView({ padding: 0.2 });
-    }
-  }, [reactFlowInstance]);
-
-  // Show notification
-  const showNotification = (message: string, severity: 'success' | 'info' | 'warning' | 'error') => {
+  }, [selectedNode, setNodes, setEdges]);
+  
+  const handleOpenMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setMenuAnchor(event.currentTarget);
+  };
+  
+  const handleCloseMenu = () => {
+    setMenuAnchor(null);
+  };
+  
+  const handleOpenTemplateMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setTemplateMenuAnchor(event.currentTarget);
+  };
+  
+  const handleCloseTemplateMenu = () => {
+    setTemplateMenuAnchor(null);
+  };
+  
+  const handleLoadTemplate = (templateKey: keyof typeof WORKFLOW_TEMPLATES) => {
+    const template = WORKFLOW_TEMPLATES[templateKey];
+    setNodes(template.nodes);
+    setEdges(template.edges);
+    setWorkflowName(template.name);
+    setWorkflowDescription(template.description);
+    handleCloseTemplateMenu();
+    
     setNotification({
       open: true,
-      message,
-      severity
+      message: `Template "${template.name}" loaded successfully`,
+      severity: 'success',
     });
   };
-
-  // Handle notification close
-  const handleNotificationClose = () => {
+  
+  const handleSaveWorkflow = () => {
+    setSaveDialogOpen(true);
+  };
+  
+  const handleSaveConfirm = () => {
+    if (onSave) {
+      onSave(nodes, edges);
+    }
+    setSaveDialogOpen(false);
+    
     setNotification({
-      ...notification,
-      open: false
+      open: true,
+      message: 'Workflow saved successfully',
+      severity: 'success',
     });
   };
-
-  // Custom connection line style
-  const connectionLineStyle = useMemo(() => ({
-    stroke: '#2196f3',
-    strokeWidth: 2,
-    strokeDasharray: '5 5',
-  }), []);
-
-  // Optimize drag performance with these settings
-  const proOptions = useMemo(() => ({ 
-    hideAttribution: true,
-    fitViewOnInit: true,
-    autoPanOnConnect: true,
-    elevateEdgesOnSelect: true,
-    enablePanOnScroll: true,
-    enablePanOnDrag: true,
-    smoothConnections: true,
-  }), []);
-
+  
+  const handleCloseNotification = () => {
+    setNotification({ ...notification, open: false });
+  };
+  
+  const handleZoomIn = () => {
+    reactFlowInstance.zoomIn();
+  };
+  
+  const handleZoomOut = () => {
+    reactFlowInstance.zoomOut();
+  };
+  
+  const handleFitView = () => {
+    reactFlowInstance.fitView();
+  };
+  
   return (
-    <Box 
-      ref={reactFlowWrapper}
-      sx={{ 
-        height: '100%', 
-        width: '100%',
-        border: '1px solid #ddd',
-        borderRadius: '4px',
-        overflow: 'hidden',
-        position: 'relative',
-        '& .react-flow__node': {
-          width: 'auto !important',
-          height: 'auto !important',
-        }
-      }}
-    >
-      {loading && (
-        <Box 
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.7)',
-            zIndex: 10
-          }}
-        >
-          <CircularProgress />
-        </Box>
-      )}
-      
+    <WorkflowCanvasContainer ref={reactFlowWrapper}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={handleNodesChange}
-        onEdgesChange={handleEdgesChange}
-        onConnect={!readOnly ? handleConnect : undefined}
-        onNodeClick={handleNodeClick}
-        nodeTypes={memoizedNodeTypes}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onNodeClick={onNodeClick}
+        onPaneClick={onPaneClick}
+        nodeTypes={nodeTypes}
         fitView
-        onInit={setReactFlowInstance}
-        deleteKeyCode="Delete"
-        selectionKeyCode="Shift"
-        multiSelectionKeyCode="Control"
-        snapToGrid={true}
-        snapGrid={[15, 15]}
-        connectionLineType={ConnectionLineType.SmoothStep}
-        connectionLineStyle={connectionLineStyle}
-        defaultEdgeOptions={memoizedEdgeOptions}
-        proOptions={proOptions}
-        minZoom={0.1}
-        maxZoom={2}
-        nodesDraggable={!readOnly}
-        nodesConnectable={!readOnly}
-        elementsSelectable={!readOnly}
-        zoomOnScroll={true}
-        panOnScroll={true}
-        panOnDrag={true}
-        preventScrolling={false}
+        attributionPosition="bottom-right"
       >
+        <Background />
         <Controls showInteractive={false} />
-        <MiniMap 
-          nodeStrokeColor={(n) => {
-            if (n.type === NODE_TYPES.communicationNode) return '#2196f3';
-            if (n.type === NODE_TYPES.translationNode) return '#4caf50';
-            if (n.type === NODE_TYPES.simetrikNode) return '#9c27b0';
-            if (n.type === NODE_TYPES.comparisonNode) return '#ff9800';
-            if (n.type === NODE_TYPES.redNode) return '#f44336';
-            return '#eee';
-          }}
-          nodeColor={(n) => {
-            if (n.type === NODE_TYPES.communicationNode) return '#e3f2fd';
-            if (n.type === NODE_TYPES.translationNode) return '#e8f5e9';
-            if (n.type === NODE_TYPES.simetrikNode) return '#f3e5f5';
-            if (n.type === NODE_TYPES.comparisonNode) return '#fff3e0';
-            if (n.type === NODE_TYPES.redNode) return '#ffebee';
-            return '#fff';
-          }}
-          nodeBorderRadius={3}
-        />
-        <Background color="#f8f8f8" gap={16} />
         
         {!readOnly && (
-          <Panel position="top-right">
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Tooltip title="Delete Selected Node">
-                <Button
-                  variant="outlined"
-                  color="error"
-                  size="small"
-                  onClick={handleDeleteNode}
-                  disabled={!selectedNode}
-                  startIcon={<DeleteIcon />}
-                >
-                  Delete
-                </Button>
-              </Tooltip>
-              <Tooltip title="Zoom In">
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleZoomIn}
-                  sx={{ minWidth: '40px', padding: '5px' }}
-                >
-                  <ZoomInIcon fontSize="small" />
-                </Button>
-              </Tooltip>
-              <Tooltip title="Zoom Out">
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleZoomOut}
-                  sx={{ minWidth: '40px', padding: '5px' }}
-                >
-                  <ZoomOutIcon fontSize="small" />
-                </Button>
-              </Tooltip>
-              <Tooltip title="Fit View">
-                <Button
-                  variant="outlined"
-                  size="small"
-                  onClick={handleFitView}
-                  sx={{ minWidth: '40px', padding: '5px' }}
-                >
-                  <CenterFocusStrongIcon fontSize="small" />
-                </Button>
-              </Tooltip>
-            </Box>
-          </Panel>
+          <NodePalette>
+            <Typography variant="subtitle2" gutterBottom>
+              Node Palette
+            </Typography>
+            <Divider sx={{ mb: 1 }} />
+            <PaletteItem
+              variant="outlined"
+              size="small"
+              onClick={() => handleAddNode(NODE_TYPES.communicationNode)}
+              sx={{ borderColor: '#2196f3', color: '#2196f3' }}
+            >
+              Communication Node
+            </PaletteItem>
+            <PaletteItem
+              variant="outlined"
+              size="small"
+              onClick={() => handleAddNode(NODE_TYPES.translationNode)}
+              sx={{ borderColor: '#4caf50', color: '#4caf50' }}
+            >
+              Translation Node
+            </PaletteItem>
+            <PaletteItem
+              variant="outlined"
+              size="small"
+              onClick={() => handleAddNode(NODE_TYPES.simetrikNode)}
+              sx={{ borderColor: '#9c27b0', color: '#9c27b0' }}
+            >
+              Simetrik SaaS Node
+            </PaletteItem>
+            <PaletteItem
+              variant="outlined"
+              size="small"
+              onClick={() => handleAddNode(NODE_TYPES.comparisonNode)}
+              sx={{ borderColor: '#ff9800', color: '#ff9800' }}
+            >
+              Comparison Node
+            </PaletteItem>
+          </NodePalette>
         )}
+        
+        <CanvasControls>
+          {!readOnly && (
+            <>
+              <Tooltip title="Add Node">
+                <IconButton
+                  color="primary"
+                  onClick={handleOpenMenu}
+                  sx={{ bgcolor: 'white', boxShadow: 1 }}
+                >
+                  <AddIcon />
+                </IconButton>
+              </Tooltip>
+              
+              {selectedNode && (
+                <Tooltip title="Delete Selected Node">
+                  <IconButton
+                    color="error"
+                    onClick={handleDeleteNode}
+                    sx={{ bgcolor: 'white', boxShadow: 1 }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
+              
+              <Tooltip title="Save Workflow">
+                <IconButton
+                  color="success"
+                  onClick={handleSaveWorkflow}
+                  sx={{ bgcolor: 'white', boxShadow: 1 }}
+                >
+                  <SaveIcon />
+                </IconButton>
+              </Tooltip>
+              
+              <Tooltip title="Load Template">
+                <IconButton
+                  color="secondary"
+                  onClick={handleOpenTemplateMenu}
+                  sx={{ bgcolor: 'white', boxShadow: 1 }}
+                >
+                  <TemplateIcon />
+                </IconButton>
+              </Tooltip>
+              
+              <Divider sx={{ my: 1 }} />
+            </>
+          )}
+          
+          <Tooltip title="Zoom In">
+            <IconButton
+              onClick={handleZoomIn}
+              sx={{ bgcolor: 'white', boxShadow: 1 }}
+            >
+              <ZoomInIcon />
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip title="Zoom Out">
+            <IconButton
+              onClick={handleZoomOut}
+              sx={{ bgcolor: 'white', boxShadow: 1 }}
+            >
+              <ZoomOutIcon />
+            </IconButton>
+          </Tooltip>
+          
+          <Tooltip title="Fit View">
+            <IconButton
+              onClick={handleFitView}
+              sx={{ bgcolor: 'white', boxShadow: 1 }}
+            >
+              <FitScreenIcon />
+            </IconButton>
+          </Tooltip>
+        </CanvasControls>
+        
+        <WorkflowInfo>
+          <Typography variant="subtitle2">{workflowName}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {workflowDescription}
+          </Typography>
+          
+          {!validationResult.valid && (
+            <Box sx={{ mt: 1 }}>
+              <Alert severity="warning" sx={{ py: 0, fontSize: '0.75rem' }}>
+                {validationResult.errors[0]}
+              </Alert>
+            </Box>
+          )}
+        </WorkflowInfo>
       </ReactFlow>
       
+      {/* Add Node Menu */}
+      <Menu
+        anchorEl={menuAnchor}
+        open={Boolean(menuAnchor)}
+        onClose={handleCloseMenu}
+      >
+        <MenuItem onClick={() => handleAddNode(NODE_TYPES.communicationNode)}>
+          Communication Node
+        </MenuItem>
+        <MenuItem onClick={() => handleAddNode(NODE_TYPES.translationNode)}>
+          Translation Node
+        </MenuItem>
+        <MenuItem onClick={() => handleAddNode(NODE_TYPES.simetrikNode)}>
+          Simetrik SaaS Node
+        </MenuItem>
+        <MenuItem onClick={() => handleAddNode(NODE_TYPES.comparisonNode)}>
+          Comparison Node
+        </MenuItem>
+        <MenuItem onClick={() => handleAddNode(NODE_TYPES.redNode)}>
+          Red Node
+        </MenuItem>
+      </Menu>
+      
+      {/* Template Menu */}
+      <Menu
+        anchorEl={templateMenuAnchor}
+        open={Boolean(templateMenuAnchor)}
+        onClose={handleCloseTemplateMenu}
+      >
+        <MenuItem onClick={() => handleLoadTemplate('basic')}>
+          Basic Workflow
+        </MenuItem>
+        <MenuItem onClick={() => handleLoadTemplate('advanced')}>
+          Advanced Workflow
+        </MenuItem>
+        <MenuItem onClick={() => handleLoadTemplate('translationWorkflow')}>
+          Document Translation Workflow
+        </MenuItem>
+      </Menu>
+      
+      {/* Save Dialog */}
+      <Dialog open={saveDialogOpen} onClose={() => setSaveDialogOpen(false)}>
+        <DialogTitle>Save Workflow</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Workflow Name"
+            fullWidth
+            variant="outlined"
+            value={workflowName}
+            onChange={(e) => setWorkflowName(e.target.value)}
+          />
+          <TextField
+            margin="dense"
+            label="Description"
+            fullWidth
+            multiline
+            rows={3}
+            variant="outlined"
+            value={workflowDescription}
+            onChange={(e) => setWorkflowDescription(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSaveDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleSaveConfirm} variant="contained" color="primary">
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Notifications */}
       <Snackbar
         open={notification.open}
-        autoHideDuration={4000}
-        onClose={handleNotificationClose}
+        autoHideDuration={6000}
+        onClose={handleCloseNotification}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={handleNotificationClose} 
-          severity={notification.severity}
+        <Alert
+          onClose={handleCloseNotification}
+          severity={notification.severity as 'success' | 'info' | 'warning' | 'error'}
           variant="filled"
-          sx={{ width: '100%' }}
         >
           {notification.message}
         </Alert>
       </Snackbar>
-    </Box>
+    </WorkflowCanvasContainer>
   );
 };
 
-export default WorkflowCanvas;
+// Wrap with ReactFlowProvider for use outside of a ReactFlow context
+const WorkflowCanvasWithProvider: React.FC<WorkflowCanvasProps> = (props) => {
+  return (
+    <ReactFlowProvider>
+      <WorkflowCanvas {...props} />
+    </ReactFlowProvider>
+  );
+};
+
+export default WorkflowCanvasWithProvider;
