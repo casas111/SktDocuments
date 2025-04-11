@@ -237,6 +237,17 @@ const DocumentsDrive = () => {
   
   // Load files and folders on path change
   useEffect(() => {
+    // Check if there's a path in localStorage (set by DriveNavigationHandler)
+    const storedPath = localStorage.getItem('currentDrivePath');
+    if (storedPath && storedPath !== currentPath) {
+      setCurrentPath(storedPath);
+      // Update history if navigating from URL
+      if (historyIndex === pathHistory.length - 1) {
+        setPathHistory([...pathHistory.slice(0, historyIndex + 1), storedPath]);
+        setHistoryIndex(historyIndex + 1);
+      }
+    }
+    
     if (!isSearchMode) {
       loadFilesAndFolders();
     }
@@ -685,6 +696,21 @@ const DocumentsDrive = () => {
               <Typography className="file-info" variant="caption">
                 {file.size && formatFileSize(file.size)} • {file.modifiedAt && formatDate(file.modifiedAt)}
               </Typography>
+              
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<PreviewIcon />}
+                sx={{ mt: 1 }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const filePath = `${currentPath === '/' ? '' : currentPath}/${file.name}`;
+                  const fileUrl = fileService.getFileUrl(filePath);
+                  window.open(fileUrl, '_blank');
+                }}
+              >
+                View
+              </Button>
             </FileGridItem>
           </Grid>
         ))}
@@ -741,6 +767,20 @@ const DocumentsDrive = () => {
               primary={file.name}
               secondary={`${file.size && formatFileSize(file.size)} • ${file.modifiedAt && formatDate(file.modifiedAt)}`}
             />
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<PreviewIcon />}
+              sx={{ mr: 1 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                const filePath = `${currentPath === '/' ? '' : currentPath}/${file.name}`;
+                const fileUrl = fileService.getFileUrl(filePath);
+                window.open(fileUrl, '_blank');
+              }}
+            >
+              View
+            </Button>
             <IconButton
               size="small"
               onClick={(e) => {

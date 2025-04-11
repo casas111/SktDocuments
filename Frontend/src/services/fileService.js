@@ -220,6 +220,18 @@ class FileService {
   getFilePreview(filePath) {
     return axios.get(`${API_URL}/files/preview/${encodeURIComponent(filePath)}`);
   }
+
+  /**
+   * Generate a unique URL for a file
+   * 
+   * @param {string} filePath - Path to the file
+   * @returns {string} - Unique URL for the file
+   */
+  getFileUrl(filePath) {
+    // Base64 encode the file path to create a unique identifier
+    const fileId = btoa(encodeURIComponent(filePath));
+    return `/file/${fileId}`;
+  }
 }
 
 export default new FileService();
