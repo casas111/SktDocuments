@@ -43,7 +43,6 @@ import {
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import fileService from '../../services/fileService';
 
 interface SearchResult {
   id: string;
@@ -77,6 +76,53 @@ interface EnhancedSearchComponentProps {
   onResultClick?: (result: SearchResult) => void;
   onClearSearch?: () => void;
 }
+
+interface SearchParams {
+  query: string;
+  filters?: {
+    type?: string;
+    date?: string;
+    size?: string;
+  };
+}
+
+interface FileItem {
+  id: string;
+  name: string;
+  type: string;
+  size?: number;
+  isDirectory: boolean;
+  path: string;
+  modifiedAt?: string;
+  owner?: string;
+}
+
+interface FileService {
+  searchFiles: (params: SearchParams) => Promise<{
+    data?: {
+      success: boolean;
+      data: FileItem[];
+    }
+  }>;
+}
+
+const fileService: FileService = {
+  searchFiles: async (params: SearchParams) => {
+    try {
+      const response = await fetch('/api/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+      });
+      return await response.json();
+    } catch (error) {
+      console.error('Error searching files:', error);
+      return { data: { success: false, data: [] } };
+    }
+  }
+};
 
 // Styled components for enhanced UI
 const SearchContainer = styled(Paper, {
@@ -136,6 +182,14 @@ const HighlightedText = styled('span')(({ theme }) => ({
   padding: '0 2px',
   borderRadius: 2,
 }));
+
+// Add type conversion function
+const convertToSearchResult = (fileItem: FileItem): SearchResult => ({
+  ...fileItem,
+  size: fileItem.size ?? 0,
+  modifiedAt: fileItem.modifiedAt || new Date().toISOString(),
+  owner: fileItem.owner || 'Unknown'
+});
 
 /**
  * Enhanced Search Component with advanced filtering and results display
@@ -269,7 +323,8 @@ const EnhancedSearchComponent: React.FC<EnhancedSearchComponentProps> = ({
       const response = await fileService.searchFiles(searchParams);
       
       if (response.data && response.data.success) {
-        setSearchResults(response.data.data || []);
+        const convertedResults = (response.data.data || []).map(convertToSearchResult);
+        setSearchResults(convertedResults);
         
         // Add to recent searches if not already there
         if (!recentSearches.includes(query)) {
@@ -277,7 +332,7 @@ const EnhancedSearchComponent: React.FC<EnhancedSearchComponentProps> = ({
         }
         
         // Call onSearch callback
-        onSearch && onSearch(response.data.data || []);
+        onSearch && onSearch(convertedResults);
       } else {
         setSearchResults([]);
       }
@@ -289,7 +344,11 @@ const EnhancedSearchComponent: React.FC<EnhancedSearchComponentProps> = ({
     }
   };
 
-  // ... rest of the component implementation ...
+  return (
+    <SearchContainer focused={searchFocused}>
+      {/* ... existing JSX ... */}
+    </SearchContainer>
+  );
 };
 
 // Utility functions

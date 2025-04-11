@@ -20,20 +20,30 @@ import EnhancedMetadataDisplay from './EnhancedMetadataDisplay';
 import fileService from '../../services/fileService';
 
 interface FileItem {
-  id: string;
   name: string;
-  type: string;
+  isDirectory: boolean;
   size?: number;
+}
+
+interface Metadata extends FileItem {
   modifiedAt: string;
   createdAt?: string;
-  owner?: string;
-  path: string;
+  accessedAt?: string;
 }
 
 interface MetadataSidebarProps {
   open: boolean;
   onClose: () => void;
   item: FileItem | null;
+  currentPath: string;
+  onDownload?: (item: FileItem) => void;
+  onRename?: (item: FileItem, newName: string) => void;
+  onDelete?: (item: FileItem) => void;
+  onShare?: (item: FileItem) => void;
+}
+
+interface EnhancedMetadataDisplayProps {
+  item: FileItem;
   currentPath: string;
   onDownload?: (item: FileItem) => void;
   onRename?: (item: FileItem, newName: string) => void;
@@ -73,6 +83,24 @@ const MetadataSidebar: React.FC<MetadataSidebarProps> = ({
   onDelete,
   onShare
 }) => {
+  if (!item) return null;
+
+  const handleDownload = (item: FileItem) => {
+    if (onDownload) onDownload(item);
+  };
+
+  const handleRename = (item: FileItem) => {
+    if (onRename) onRename(item, '');
+  };
+
+  const handleDelete = (item: FileItem) => {
+    if (onDelete) onDelete(item);
+  };
+
+  const handleShare = (item: FileItem) => {
+    if (onShare) onShare(item);
+  };
+
   return (
     <MetadataDrawer
       anchor="right"
@@ -89,10 +117,10 @@ const MetadataSidebar: React.FC<MetadataSidebarProps> = ({
       <EnhancedMetadataDisplay
         item={item}
         currentPath={currentPath}
-        onDownload={onDownload}
-        onRename={onRename}
-        onDelete={onDelete}
-        onShare={onShare}
+        onDownload={handleDownload}
+        onRename={handleRename}
+        onDelete={handleDelete}
+        onShare={handleShare}
       />
     </MetadataDrawer>
   );

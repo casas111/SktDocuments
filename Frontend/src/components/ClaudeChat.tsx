@@ -28,6 +28,13 @@ interface Model {
   name: string;
 }
 
+interface ClaudeResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  model?: string;
+}
+
 /**
  * Claude Chat Component
  * Provides a user interface for interacting with Claude AI
@@ -104,17 +111,18 @@ const ClaudeChat: React.FC = () => {
       );
       
       // Add Claude's response to chat
-      if (response.success) {
+      const data = response as ClaudeResponse;
+      if (data.success) {
         const claudeMessage: Message = {
           role: 'assistant',
-          content: response.message,
+          content: data.message || '',
           timestamp: new Date().toISOString(),
-          model: response.model
+          model: data.model || 'claude'
         };
         
         setMessages(prev => [...prev, claudeMessage]);
       } else {
-        setError(response.error || 'Failed to get response from Claude');
+        setError(data.error || 'Failed to get response from Claude');
       }
     } catch (err) {
       console.error('Error sending message to Claude:', err);

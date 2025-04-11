@@ -393,50 +393,54 @@ const EnhancedMetadataDisplay: React.FC<EnhancedMetadataDisplayProps> = ({
             </Typography>
             
             <Grid container spacing={2}>
-              <Grid component="div" xs={12} sm={6}>
-                <MetadataItem>
-                  <MetadataLabel variant="body2">Name:</MetadataLabel>
-                  <MetadataValue variant="body2">{metadata.name}</MetadataValue>
-                </MetadataItem>
-                
-                <MetadataItem>
-                  <MetadataLabel variant="body2">Type:</MetadataLabel>
-                  <MetadataValue variant="body2">{getFileTypeDescription()}</MetadataValue>
-                </MetadataItem>
-                
-                {!metadata.isDirectory && (
+              <Box sx={{ gridColumn: { xs: 'span 12', sm: 'span 6' } }}>
+                <Box>
                   <MetadataItem>
-                    <MetadataLabel variant="body2">Size:</MetadataLabel>
-                    <MetadataValue variant="body2">{formatFileSize(metadata.size || 0)}</MetadataValue>
+                    <MetadataLabel variant="body2">Name:</MetadataLabel>
+                    <MetadataValue variant="body2">{metadata.name}</MetadataValue>
                   </MetadataItem>
-                )}
-                
-                {metadata.isDirectory && metadata.itemCount !== undefined && (
+                  
                   <MetadataItem>
-                    <MetadataLabel variant="body2">Contents:</MetadataLabel>
-                    <MetadataValue variant="body2">{metadata.itemCount} items</MetadataValue>
+                    <MetadataLabel variant="body2">Type:</MetadataLabel>
+                    <MetadataValue variant="body2">{getFileTypeDescription()}</MetadataValue>
                   </MetadataItem>
-                )}
-              </Grid>
+                  
+                  {!metadata.isDirectory && (
+                    <MetadataItem>
+                      <MetadataLabel variant="body2">Size:</MetadataLabel>
+                      <MetadataValue variant="body2">{formatFileSize(metadata.size || 0)}</MetadataValue>
+                    </MetadataItem>
+                  )}
+                  
+                  {metadata.isDirectory && metadata.itemCount !== undefined && (
+                    <MetadataItem>
+                      <MetadataLabel variant="body2">Contents:</MetadataLabel>
+                      <MetadataValue variant="body2">{metadata.itemCount} items</MetadataValue>
+                    </MetadataItem>
+                  )}
+                </Box>
+              </Box>
               
-              <Grid component="div" xs={12} sm={6}>
-                <MetadataItem>
-                  <MetadataLabel variant="body2">Created:</MetadataLabel>
-                  <MetadataValue variant="body2">{formatDate(metadata.createdAt)}</MetadataValue>
-                </MetadataItem>
-                
-                <MetadataItem>
-                  <MetadataLabel variant="body2">Modified:</MetadataLabel>
-                  <MetadataValue variant="body2">{formatDate(metadata.modifiedAt)}</MetadataValue>
-                </MetadataItem>
-                
-                {metadata.accessedAt && (
+              <Box sx={{ gridColumn: { xs: 'span 12', sm: 'span 6' } }}>
+                <Box>
                   <MetadataItem>
-                    <MetadataLabel variant="body2">Accessed:</MetadataLabel>
-                    <MetadataValue variant="body2">{formatDate(metadata.accessedAt)}</MetadataValue>
+                    <MetadataLabel variant="body2">Created:</MetadataLabel>
+                    <MetadataValue variant="body2">{formatDate(metadata.createdAt)}</MetadataValue>
                   </MetadataItem>
-                )}
-              </Grid>
+                  
+                  <MetadataItem>
+                    <MetadataLabel variant="body2">Modified:</MetadataLabel>
+                    <MetadataValue variant="body2">{formatDate(metadata.modifiedAt)}</MetadataValue>
+                  </MetadataItem>
+                  
+                  {metadata.accessedAt && (
+                    <MetadataItem>
+                      <MetadataLabel variant="body2">Accessed:</MetadataLabel>
+                      <MetadataValue variant="body2">{formatDate(metadata.accessedAt)}</MetadataValue>
+                    </MetadataItem>
+                  )}
+                </Box>
+              </Box>
             </Grid>
           </MetadataSection>
           
