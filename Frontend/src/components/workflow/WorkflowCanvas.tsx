@@ -116,10 +116,9 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   const handleNodesChange = useCallback((changes: NodeChange[]) => {
     onNodesChangeInternal(changes);
     
-    // Only notify parent component of changes when not dragging
-    const isDragging = changes.some(change => change.type === 'position' && change.dragging);
-    
-    if (onNodesChange && !isDragging) {
+    // Always notify parent component of changes, even during dragging
+    // This ensures all node states are preserved
+    if (onNodesChange) {
       // Use requestAnimationFrame for smoother updates
       requestAnimationFrame(() => onNodesChange(nodes));
     }

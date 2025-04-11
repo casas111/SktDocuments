@@ -378,12 +378,28 @@ const DocumentExplorer: React.FC<DocumentExplorerProps> = ({ viewType, folderId,
     }
     
     try {
+      setLoading(true);
       const response = await createFolder(newFolderName, currentFolder?.id || 'root');
       if (response.success && response.data) {
-        // Wait a short moment to ensure the backend has processed the creation
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Wait a longer moment to ensure the backend has fully processed the creation
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
         // Then refresh the folders list
         await loadFolders();
+        
+        // Add the new folder to the current folders list immediately
+        // This ensures it appears in the UI even if the backend refresh is delayed
+        if (response.data) {
+          const newFolder: Folder = response.data;
+          setFolders(prevFolders => {
+            // Check if folder already exists to avoid duplicates
+            if (!prevFolders.some(folder => folder.id === newFolder.id)) {
+              return [...prevFolders, newFolder];
+            }
+            return prevFolders;
+          });
+        }
+        
         showNotification('Folder created successfully', 'success');
         setNewFolderName('');
         setShowCreateFolderDialog(false);
@@ -393,6 +409,8 @@ const DocumentExplorer: React.FC<DocumentExplorerProps> = ({ viewType, folderId,
     } catch (error) {
       console.error('Error creating folder:', error);
       showNotification('Error creating folder', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -9,6 +9,7 @@ const documentRoutes = require('./routes/documentRoutes');
 const workflowRoutes = require('./routes/workflowRoutes');
 const claudeRoutes = require('./routes/claudeRoutes');
 const fileRoutes = require('./routes/fileRoutes');
+const fileMetadataRoutes = require('./routes/fileMetadataRoutes');
 
 // Create Express app
 const app = express();
@@ -30,6 +31,7 @@ app.use('/api/documents', documentRoutes);
 app.use('/api/workflow', workflowRoutes);
 app.use('/api/claude', claudeRoutes);
 app.use('/api/files', fileRoutes);
+app.use('/api/files', fileMetadataRoutes);
 
 // Root route
 app.get('/', (req, res) => {

@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material';
 import WorkflowBuilder from '../workflow/WorkflowBuilder';
 import DocumentDrive from '../documents/DocumentDrive';
+import FileViewer from '../FileViewer';
 
 const drawerWidth = 240;
 
@@ -104,6 +105,7 @@ const MainLayout: React.FC = () => {
           <Route path="/documents/*" element={<DocumentDrive />} />
           <Route path="/workflow" element={<WorkflowBuilder />} />
           <Route path="/workflow/:id" element={<WorkflowBuilder />} />
+          <Route path="/file/:fileId" element={<FileViewer />} />
         </Routes>
       </Box>
     </Box>

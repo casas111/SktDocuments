@@ -282,7 +282,37 @@ const EnhancedFolderTree = ({
       const response = await fileService.createFolder(newFolderParent, newFolderName);
       
       if (response.data && response.data.success) {
+        // Wait to ensure backend processing completes
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Add the new folder to the folder structure immediately
+        // This ensures it appears in the UI even if the backend refresh is delayed
+        if (response.data.data) {
+          const newFolder = response.data.data;
+          const newFolderPath = newFolder.path || `${newFolderParent === '/' ? '' : newFolderParent}/${newFolder.name}`;
+          
+          // Update folder structure with the new folder
+          const updatedFolderStructure = [...folderStructure];
+          
+          // Create folder object for the new folder
+          const folderObj = {
+            ...newFolder,
+            path: newFolderPath,
+            children: [],
+            level: (newFolderParent.match(/\//g) || []).length + 1,
+            parent: newFolderParent
+          };
+          
+          // Add to folder structure if not already present
+          if (!updatedFolderStructure.some(f => f.path === newFolderPath)) {
+            updatedFolderStructure.push(folderObj);
+            setFolderStructure(updatedFolderStructure);
+          }
+        }
+        
         setNewFolderDialog(false);
+        
+        // Call the callback to refresh parent component
         onFolderCreated && onFolderCreated();
         
         // Auto-expand parent folder

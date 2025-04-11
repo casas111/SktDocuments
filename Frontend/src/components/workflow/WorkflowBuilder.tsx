@@ -231,16 +231,15 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onNodesChange, onEdge
     }
     
     autoSaveTimer.current = setTimeout(() => {
-      if (nodes.length > 0 || edges.length > 0) {
-        const workflowData = {
-          id: currentWorkflowId,
-          name: workflowName || 'Untitled Workflow',
-          nodes,
-          edges,
-          lastSaved: new Date().toISOString()
-        };
-        localStorage.setItem('currentWorkflow', JSON.stringify(workflowData));
-      }
+      // Save all nodes regardless of whether they are connected
+      const workflowData = {
+        id: currentWorkflowId,
+        name: workflowName || 'Untitled Workflow',
+        nodes,
+        edges,
+        lastSaved: new Date().toISOString()
+      };
+      localStorage.setItem('currentWorkflow', JSON.stringify(workflowData));
     }, 2000); // Auto-save after 2 seconds of inactivity
     
     return () => {
