@@ -248,6 +248,9 @@ const DocumentsDrive = () => {
       }
       // Clear the localStorage value after using it to prevent interference with normal navigation
       localStorage.removeItem('currentDrivePath');
+      
+      // Don't update URL here as this is coming from a direct URL navigation
+      // The URL is already correct
     }
     
     if (!isSearchMode) {
@@ -315,6 +318,11 @@ const DocumentsDrive = () => {
     // Set a flag to indicate this is in-app navigation, not direct URL navigation
     localStorage.setItem('inAppNavigation', 'true');
     
+    // Update URL to match the current folder path without triggering a page reload
+    // This ensures bookmarking and sharing URLs works correctly
+    const newPath = folderPath === '/' ? '/drive' : `/drive${folderPath}`;
+    window.history.pushState({}, '', newPath);
+    
     // Add to history if navigating forward
     if (historyIndex === pathHistory.length - 1) {
       setPathHistory([...pathHistory.slice(0, historyIndex + 1), folderPath]);
@@ -333,8 +341,15 @@ const DocumentsDrive = () => {
     if (historyIndex > 0) {
       // Set a flag to indicate this is in-app navigation, not direct URL navigation
       localStorage.setItem('inAppNavigation', 'true');
+      
+      const previousPath = pathHistory[historyIndex - 1];
+      
+      // Update URL to match the previous folder path without triggering a page reload
+      const newPath = previousPath === '/' ? '/drive' : `/drive${previousPath}`;
+      window.history.pushState({}, '', newPath);
+      
       setHistoryIndex(historyIndex - 1);
-      setCurrentPath(pathHistory[historyIndex - 1]);
+      setCurrentPath(previousPath);
       setSelectedItems([]);
     }
   };
@@ -343,8 +358,15 @@ const DocumentsDrive = () => {
     if (historyIndex < pathHistory.length - 1) {
       // Set a flag to indicate this is in-app navigation, not direct URL navigation
       localStorage.setItem('inAppNavigation', 'true');
+      
+      const nextPath = pathHistory[historyIndex + 1];
+      
+      // Update URL to match the next folder path without triggering a page reload
+      const newPath = nextPath === '/' ? '/drive' : `/drive${nextPath}`;
+      window.history.pushState({}, '', newPath);
+      
       setHistoryIndex(historyIndex + 1);
-      setCurrentPath(pathHistory[historyIndex + 1]);
+      setCurrentPath(nextPath);
       setSelectedItems([]);
     }
   };
