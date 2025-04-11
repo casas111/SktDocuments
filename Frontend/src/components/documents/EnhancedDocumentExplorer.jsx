@@ -1,294 +1,487 @@
-import React from 'react';
-import { Box, Typography, Paper, Card, CardContent, CardMedia, Grid, Chip, IconButton, Tooltip, Button } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import React, { useState, useEffect } from 'react';
 import { 
-  Folder as FolderIcon, 
-  Description as DescriptionIcon, 
-  Image as ImageIcon, 
-  Movie as MovieIcon, 
-  AudioFile as AudioFileIcon, 
-  PictureAsPdf as PdfIcon, 
-  Code as CodeIcon, 
-  Archive as ArchiveIcon,
-  Star as StarIcon,
-  StarBorder as StarBorderIcon,
-  MoreVert as MoreVertIcon,
-  Download as DownloadIcon,
-  Delete as DeleteIcon,
-  Edit as EditIcon,
-  Label as LabelIcon,
-  Add as AddIcon
+  Box, 
+  Typography, 
+  Paper, 
+  Grid,
+  Button,
+  IconButton,
+  Divider,
+  CircularProgress,
+  Alert,
+  Snackbar,
+  Breadcrumbs,
+  Link,
+  Tooltip
+} from '@mui/material';
+import { styled } from '@mui/material/styles';
+import {
+  Folder as FolderIcon,
+  Description as FileIcon,
+  CreateNewFolder as NewFolderIcon,
+  Upload as UploadIcon,
+  Refresh as RefreshIcon,
+  Home as HomeIcon,
+  NavigateNext as NavigateNextIcon
 } from '@mui/icons-material';
+import ImprovedFolderTree from './ImprovedFolderTree';
+import unifiedDocumentService from '../../services/unifiedDocumentService';
 
-// Styled components for enhanced UI
-const DocumentCard = styled(Card)(({ theme }) => ({
+// Styled components
+const DocumentExplorerContainer = styled(Box)(({ theme }) => ({
   height: '100%',
   display: 'flex',
   flexDirection: 'column',
-  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+  backgroundColor: theme.palette.background.default,
+  borderRadius: theme.shape.borderRadius,
+  overflow: 'hidden'
+}));
+
+const ExplorerHeader = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(2),
+  backgroundColor: theme.palette.background.paper,
+  borderBottom: `1px solid ${theme.palette.divider}`,
+}));
+
+const ExplorerContent = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexGrow: 1,
+  overflow: 'hidden',
+}));
+
+const FolderTreePanel = styled(Box)(({ theme }) => ({
+  width: 280,
+  borderRight: `1px solid ${theme.palette.divider}`,
+  overflow: 'auto',
+  height: '100%',
+  backgroundColor: theme.palette.background.paper,
+}));
+
+const ContentPanel = styled(Box)(({ theme }) => ({
+  flexGrow: 1,
+  padding: theme.spacing(2),
+  overflow: 'auto',
+  height: '100%',
+}));
+
+const ActionBar = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: theme.spacing(2),
+}));
+
+const FileCard = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(2),
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
   cursor: 'pointer',
+  transition: 'all 0.2s ease',
   '&:hover': {
     transform: 'translateY(-4px)',
     boxShadow: theme.shadows[4],
   },
 }));
 
-const DocumentCardMedia = styled(CardMedia)(({ theme }) => ({
-  height: 140,
-  backgroundColor: theme.palette.grey[100],
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-}));
-
-const FolderCard = styled(Card)(({ theme }) => ({
-  height: '100%',
+const FolderCard = styled(Paper)(({ theme }) => ({
+  padding: theme.spacing(2),
   display: 'flex',
   flexDirection: 'column',
+  alignItems: 'center',
+  cursor: 'pointer',
+  transition: 'all 0.2s ease',
   backgroundColor: theme.palette.primary.light,
   color: theme.palette.primary.contrastText,
-  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-  cursor: 'pointer',
   '&:hover': {
     transform: 'translateY(-4px)',
     boxShadow: theme.shadows[4],
-    backgroundColor: theme.palette.primary.main,
   },
 }));
 
-const TagChip = styled(Chip)(({ theme, color }) => ({
-  margin: theme.spacing(0.5),
-  backgroundColor: color || theme.palette.primary.main,
-  color: theme.palette.primary.contrastText,
-  '&:hover': {
-    backgroundColor: color ? `${color}dd` : theme.palette.primary.dark,
-  },
+const IconContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  justifyContent: 'center',
+  alignItems: 'center',
+  width: 60,
+  height: 60,
+  marginBottom: theme.spacing(1),
+  borderRadius: '50%',
+  backgroundColor: theme.palette.background.default,
 }));
 
-const ActionButton = styled(IconButton)(({ theme }) => ({
-  color: theme.palette.text.secondary,
-  '&:hover': {
-    color: theme.palette.primary.main,
-    backgroundColor: theme.palette.action.hover,
-  },
-}));
-
-const AddButton = styled(Button)(({ theme }) => ({
-  margin: theme.spacing(2, 0),
-  borderRadius: theme.shape.borderRadius * 3,
-  textTransform: 'none',
-  fontWeight: 600,
-  boxShadow: theme.shadows[2],
-  '&:hover': {
-    boxShadow: theme.shadows[4],
-  },
-}));
-
-const SectionTitle = styled(Typography)(({ theme }) => ({
-  marginBottom: theme.spacing(2),
-  fontWeight: 600,
-  position: 'relative',
-  '&:after': {
-    content: '""',
-    position: 'absolute',
-    bottom: -8,
-    left: 0,
-    width: 40,
-    height: 4,
-    backgroundColor: theme.palette.primary.main,
-    borderRadius: 2,
-  },
-}));
-
-// Enhanced Document Explorer UI Component
-const EnhancedDocumentExplorer = ({ 
-  documents = [], 
-  folders = [], 
-  tags = [],
-  onDocumentClick,
-  onFolderClick,
-  onCreateFolder,
-  onTagClick,
-  onStarDocument,
-  onDeleteDocument,
-  onDownloadDocument,
-  onEditDocument
-}) => {
-  // Get file icon based on mimetype
-  const getFileIcon = (mimetype) => {
-    if (mimetype.startsWith('image/')) {
-      return <ImageIcon fontSize="large" color="primary" />;
-    } else if (mimetype.startsWith('video/')) {
-      return <MovieIcon fontSize="large" color="error" />;
-    } else if (mimetype.startsWith('audio/')) {
-      return <AudioFileIcon fontSize="large" color="success" />;
-    } else if (mimetype === 'application/pdf') {
-      return <PdfIcon fontSize="large" color="error" />;
-    } else if (mimetype.includes('javascript') || mimetype.includes('json') || mimetype.includes('html') || mimetype.includes('css')) {
-      return <CodeIcon fontSize="large" color="info" />;
-    } else if (mimetype.includes('zip') || mimetype.includes('rar') || mimetype.includes('tar') || mimetype.includes('gzip')) {
-      return <ArchiveIcon fontSize="large" color="warning" />;
-    } else {
-      return <DescriptionIcon fontSize="large" color="action" />;
+/**
+ * Enhanced Document Explorer Component
+ * 
+ * This component provides a comprehensive file and folder explorer with
+ * improved folder rendering and management capabilities.
+ */
+const EnhancedDocumentExplorer = () => {
+  // State
+  const [currentPath, setCurrentPath] = useState('/');
+  const [folders, setFolders] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [notification, setNotification] = useState({ open: false, message: '', severity: 'info' });
+  const [breadcrumbs, setBreadcrumbs] = useState([{ name: 'Root', path: '/' }]);
+  
+  // Load folders and files on mount and when current path changes
+  useEffect(() => {
+    loadFolders();
+    loadDirectoryContents(currentPath);
+  }, [currentPath]);
+  
+  // Load all folders for the folder tree
+  const loadFolders = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await unifiedDocumentService.getAllFolders();
+      
+      if (response.success && response.data) {
+        console.log('Loaded all folders:', response.data);
+        setFolders(response.data);
+      } else {
+        console.error('Error loading folders:', response.error);
+        setError('Failed to load folders: ' + (response.error || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Exception loading folders:', err);
+      setError('Error loading folders: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
-
-  // Format file size
-  const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  // Format date
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    }).format(date);
-  };
-
-  return (
-    <Box sx={{ py: 2 }}>
-      {/* Folders Section */}
-      {folders.length > 0 && (
-        <Box sx={{ mb: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <SectionTitle variant="h6">Folders</SectionTitle>
-            <AddButton 
-              variant="contained" 
-              color="primary" 
-              startIcon={<AddIcon />}
-              onClick={onCreateFolder}
-            >
-              New Folder
-            </AddButton>
-          </Box>
-          
-          <Grid container spacing={2}>
-            {folders.map((folder) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={folder.id}>
-                <FolderCard onClick={() => onFolderClick(folder.id)}>
-                  <CardContent sx={{ display: 'flex', alignItems: 'center', p: 2 }}>
-                    <FolderIcon sx={{ fontSize: 40, mr: 2 }} />
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight="bold" noWrap>
-                        {folder.name}
-                      </Typography>
-                      <Typography variant="caption">
-                        {folder.itemCount || 0} items
-                      </Typography>
-                    </Box>
-                  </CardContent>
-                </FolderCard>
-              </Grid>
-            ))}
-          </Grid>
-        </Box>
-      )}
-
-      {/* Tags Section */}
-      {tags.length > 0 && (
-        <Box sx={{ mb: 4 }}>
-          <SectionTitle variant="h6">Tags</SectionTitle>
-          <Paper sx={{ p: 2, display: 'flex', flexWrap: 'wrap' }}>
-            {tags.map((tag) => (
-              <TagChip 
-                key={tag.id}
-                label={tag.name}
-                color={tag.color}
-                icon={<LabelIcon />}
-                onClick={() => onTagClick(tag.id)}
-              />
-            ))}
-          </Paper>
-        </Box>
-      )}
-
-      {/* Documents Section */}
-      <Box>
-        <SectionTitle variant="h6">Documents</SectionTitle>
+  
+  // Load contents of the current directory
+  const loadDirectoryContents = async (dirPath) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const response = await unifiedDocumentService.getDirectoryContents(dirPath);
+      
+      if (response.success && response.data) {
+        console.log('Loaded directory contents:', response.data);
         
-        {documents.length === 0 ? (
-          <Paper sx={{ p: 4, textAlign: 'center' }}>
-            <DescriptionIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              No documents found
+        // Separate files and folders
+        const folderItems = response.data.filter(item => item.isDirectory);
+        const fileItems = response.data.filter(item => !item.isDirectory);
+        
+        setFiles(fileItems);
+        
+        // Update breadcrumbs
+        updateBreadcrumbs(dirPath);
+      } else {
+        console.error('Error loading directory contents:', response.error);
+        setError('Failed to load directory contents: ' + (response.error || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Exception loading directory contents:', err);
+      setError('Error loading directory contents: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Update breadcrumbs based on current path
+  const updateBreadcrumbs = (path) => {
+    if (path === '/') {
+      setBreadcrumbs([{ name: 'Root', path: '/' }]);
+      return;
+    }
+    
+    const parts = path.split('/').filter(Boolean);
+    let currentPath = '';
+    const crumbs = [{ name: 'Root', path: '/' }];
+    
+    parts.forEach(part => {
+      currentPath += '/' + part;
+      crumbs.push({
+        name: part,
+        path: currentPath
+      });
+    });
+    
+    setBreadcrumbs(crumbs);
+  };
+  
+  // Navigate to a folder
+  const navigateToFolder = (path) => {
+    console.log('Navigating to folder:', path);
+    setCurrentPath(path);
+  };
+  
+  // Handle folder creation
+  const handleFolderCreated = () => {
+    console.log('Folder created, refreshing...');
+    loadFolders();
+    loadDirectoryContents(currentPath);
+    showNotification('Folder created successfully', 'success');
+  };
+  
+  // Handle folder rename
+  const handleFolderRenamed = () => {
+    console.log('Folder renamed, refreshing...');
+    loadFolders();
+    loadDirectoryContents(currentPath);
+    showNotification('Folder renamed successfully', 'success');
+  };
+  
+  // Handle folder deletion
+  const handleFolderDeleted = () => {
+    console.log('Folder deleted, refreshing...');
+    loadFolders();
+    loadDirectoryContents(currentPath);
+    showNotification('Folder deleted successfully', 'success');
+  };
+  
+  // Handle folder move
+  const handleFolderMoved = () => {
+    console.log('Folder moved, refreshing...');
+    loadFolders();
+    loadDirectoryContents(currentPath);
+    showNotification('Folder moved successfully', 'success');
+  };
+  
+  // Refresh current directory
+  const refreshCurrentDirectory = () => {
+    loadFolders();
+    loadDirectoryContents(currentPath);
+    showNotification('Content refreshed', 'info');
+  };
+  
+  // Show notification
+  const showNotification = (message, severity = 'info') => {
+    setNotification({
+      open: true,
+      message,
+      severity
+    });
+  };
+  
+  // Close notification
+  const closeNotification = () => {
+    setNotification(prev => ({
+      ...prev,
+      open: false
+    }));
+  };
+  
+  // Render breadcrumbs
+  const renderBreadcrumbs = () => {
+    return (
+      <Breadcrumbs 
+        separator={<NavigateNextIcon fontSize="small" />}
+        aria-label="breadcrumb"
+      >
+        {breadcrumbs.map((crumb, index) => {
+          const isLast = index === breadcrumbs.length - 1;
+          
+          return isLast ? (
+            <Typography key={crumb.path} color="text.primary" fontWeight="bold">
+              {crumb.name}
             </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Upload documents or create a new folder to organize your files.
-            </Typography>
-          </Paper>
-        ) : (
-          <Grid container spacing={2}>
-            {documents.map((doc) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={doc.id}>
-                <DocumentCard>
-                  <DocumentCardMedia
-                    onClick={() => onDocumentClick(doc.id)}
-                  >
-                    {getFileIcon(doc.mimetype)}
-                  </DocumentCardMedia>
-                  <CardContent sx={{ flexGrow: 1, p: 2 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <Typography variant="subtitle1" fontWeight="medium" noWrap sx={{ mb: 0.5 }}>
-                        {doc.originalName}
-                      </Typography>
-                      <ActionButton size="small" onClick={() => onStarDocument(doc.id)}>
-                        {doc.starred ? <StarIcon color="warning" /> : <StarBorderIcon />}
-                      </ActionButton>
-                    </Box>
-                    
-                    <Typography variant="caption" color="text.secondary" component="div">
-                      {formatFileSize(doc.size)} • {formatDate(doc.uploadDate || new Date())}
-                    </Typography>
-                    
-                    {doc.tags && doc.tags.length > 0 && (
-                      <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap' }}>
-                        {doc.tags.map((tag) => (
-                          <TagChip 
-                            key={tag.id}
-                            label={tag.name}
-                            color={tag.color}
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onTagClick(tag.id);
-                            }}
-                          />
-                        ))}
-                      </Box>
-                    )}
-                  </CardContent>
+          ) : (
+            <Link
+              key={crumb.path}
+              color="inherit"
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                navigateToFolder(crumb.path);
+              }}
+            >
+              {index === 0 ? <HomeIcon fontSize="small" sx={{ mr: 0.5 }} /> : null}
+              {crumb.name}
+            </Link>
+          );
+        })}
+      </Breadcrumbs>
+    );
+  };
+  
+  return (
+    <DocumentExplorerContainer>
+      <ExplorerHeader>
+        <Typography variant="h6" gutterBottom>
+          Document Explorer
+        </Typography>
+        
+        {renderBreadcrumbs()}
+      </ExplorerHeader>
+      
+      <ExplorerContent>
+        <FolderTreePanel>
+          <ImprovedFolderTree
+            folders={folders}
+            currentPath={currentPath}
+            onNavigate={navigateToFolder}
+            onFolderCreated={handleFolderCreated}
+            onFolderRenamed={handleFolderRenamed}
+            onFolderDeleted={handleFolderDeleted}
+            onFolderMoved={handleFolderMoved}
+          />
+        </FolderTreePanel>
+        
+        <ContentPanel>
+          {/* Action bar */}
+          <ActionBar>
+            <Box>
+              <Button
+                variant="contained"
+                startIcon={<UploadIcon />}
+                sx={{ mr: 1 }}
+              >
+                Upload Files
+              </Button>
+              
+              <Button
+                variant="outlined"
+                startIcon={<NewFolderIcon />}
+                onClick={() => {
+                  // This will be handled by the folder tree component
+                  // Just navigate to the current path to ensure it's visible
+                  navigateToFolder(currentPath);
+                }}
+              >
+                New Folder
+              </Button>
+            </Box>
+            
+            <Tooltip title="Refresh">
+              <IconButton onClick={refreshCurrentDirectory}>
+                <RefreshIcon />
+              </IconButton>
+            </Tooltip>
+          </ActionBar>
+          
+          {/* Error message */}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          )}
+          
+          {/* Loading indicator */}
+          {loading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+              <CircularProgress />
+            </Box>
+          )}
+          
+          {/* Content */}
+          {!loading && (
+            <>
+              {/* Folders */}
+              {folders.filter(folder => folder.parent === currentPath).length > 0 && (
+                <>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Folders
+                  </Typography>
                   
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', p: 1, pt: 0 }}>
-                    <Tooltip title="Download">
-                      <ActionButton size="small" onClick={() => onDownloadDocument(doc.id)}>
-                        <DownloadIcon fontSize="small" />
-                      </ActionButton>
-                    </Tooltip>
-                    <Tooltip title="Edit">
-                      <ActionButton size="small" onClick={() => onEditDocument(doc.id)}>
-                        <EditIcon fontSize="small" />
-                      </ActionButton>
-                    </Tooltip>
-                    <Tooltip title="Delete">
-                      <ActionButton size="small" onClick={() => onDeleteDocument(doc.id)}>
-                        <DeleteIcon fontSize="small" />
-                      </ActionButton>
-                    </Tooltip>
+                  <Grid container spacing={2} sx={{ mb: 4 }}>
+                    {folders
+                      .filter(folder => folder.parent === currentPath)
+                      .map(folder => (
+                        <Grid item xs={6} sm={4} md={3} lg={2} key={folder.path}>
+                          <FolderCard onClick={() => navigateToFolder(folder.path)}>
+                            <IconContainer>
+                              <FolderIcon fontSize="large" />
+                            </IconContainer>
+                            
+                            <Typography variant="body2" align="center" noWrap>
+                              {folder.name}
+                            </Typography>
+                          </FolderCard>
+                        </Grid>
+                      ))}
+                  </Grid>
+                </>
+              )}
+              
+              {/* Files */}
+              {files.length > 0 && (
+                <>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Files
+                  </Typography>
+                  
+                  <Grid container spacing={2}>
+                    {files.map(file => (
+                      <Grid item xs={6} sm={4} md={3} lg={2} key={file.path}>
+                        <FileCard>
+                          <IconContainer>
+                            <FileIcon fontSize="large" />
+                          </IconContainer>
+                          
+                          <Typography variant="body2" align="center" noWrap>
+                            {file.name}
+                          </Typography>
+                          
+                          <Typography variant="caption" color="text.secondary">
+                            {(file.size / 1024).toFixed(1)} KB
+                          </Typography>
+                        </FileCard>
+                      </Grid>
+                    ))}
+                  </Grid>
+                </>
+              )}
+              
+              {/* Empty state */}
+              {folders.filter(folder => folder.parent === currentPath).length === 0 && files.length === 0 && (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <Typography variant="body1" color="text.secondary" gutterBottom>
+                    This folder is empty
+                  </Typography>
+                  
+                  <Box sx={{ mt: 2 }}>
+                    <Button
+                      variant="outlined"
+                      startIcon={<UploadIcon />}
+                      sx={{ mr: 1 }}
+                    >
+                      Upload Files
+                    </Button>
+                    
+                    <Button
+                      variant="outlined"
+                      startIcon={<NewFolderIcon />}
+                      onClick={() => {
+                        // This will be handled by the folder tree component
+                        // Just navigate to the current path to ensure it's visible
+                        navigateToFolder(currentPath);
+                      }}
+                    >
+                      New Folder
+                    </Button>
                   </Box>
-                </DocumentCard>
-              </Grid>
-            ))}
-          </Grid>
-        )}
-      </Box>
-    </Box>
+                </Box>
+              )}
+            </>
+          )}
+        </ContentPanel>
+      </ExplorerContent>
+      
+      {/* Notification snackbar */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
+        onClose={closeNotification}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      >
+        <Alert
+          onClose={closeNotification}
+          severity={notification.severity}
+          sx={{ width: '100%' }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
+    </DocumentExplorerContainer>
   );
 };
 
