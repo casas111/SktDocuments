@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001/api';
 
 /**
  * Service for interacting with the file management API
@@ -13,7 +13,7 @@ class FileService {
    * @returns {Promise} - Promise with directory contents
    */
   getDirectoryContents(dirPath = '') {
-    return axios.get(`${API_URL}/api/files`, {
+    return axios.get(`${API_URL}/files`, {
       params: { dirPath }
     });
   }
@@ -26,7 +26,7 @@ class FileService {
    * @returns {Promise} - Promise with created folder data
    */
   createFolder(folderPath, folderName) {
-    return axios.post(`${API_URL}/api/files/folder`, {
+    return axios.post(`${API_URL}/files/folder`, {
       folderPath,
       folderName
     });
@@ -48,7 +48,7 @@ class FileService {
       formData.append('files', files[i]);
     }
     
-    return axios.post(`${API_URL}/api/files/upload`, formData, {
+    return axios.post(`${API_URL}/files/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       },
@@ -69,7 +69,7 @@ class FileService {
    */
   downloadFile(filePath) {
     return new Promise((resolve, reject) => {
-      axios.get(`${API_URL}/api/files/download/${encodeURIComponent(filePath)}`, {
+      axios.get(`${API_URL}/files/download/${encodeURIComponent(filePath)}`, {
         responseType: 'blob'
       })
         .then(response => {
@@ -121,7 +121,7 @@ class FileService {
    */
   downloadMultipleFiles(filePaths) {
     return new Promise((resolve, reject) => {
-      axios.post(`${API_URL}/api/files/download-multiple`, {
+      axios.post(`${API_URL}/files/download-multiple`, {
         filePaths
       }, {
         responseType: 'blob'
@@ -171,7 +171,7 @@ class FileService {
    * @returns {Promise} - Promise with renamed item data
    */
   renameItem(itemPath, newName) {
-    return axios.put(`${API_URL}/api/files/rename`, {
+    return axios.put(`${API_URL}/files/rename`, {
       path: itemPath,
       newName
     });
@@ -185,7 +185,7 @@ class FileService {
    * @returns {Promise} - Promise with moved item data
    */
   moveItem(sourcePath, destinationPath) {
-    return axios.put(`${API_URL}/api/files/move`, {
+    return axios.put(`${API_URL}/files/move`, {
       sourcePath,
       destinationPath
     });
@@ -198,7 +198,7 @@ class FileService {
    * @returns {Promise} - Promise that resolves when deletion is complete
    */
   deleteItem(itemPath) {
-    return axios.delete(`${API_URL}/api/files/${encodeURIComponent(itemPath)}`);
+    return axios.delete(`${API_URL}/files/${encodeURIComponent(itemPath)}`);
   }
 
   /**
@@ -208,7 +208,7 @@ class FileService {
    * @returns {Promise} - Promise with item metadata
    */
   getMetadata(itemPath) {
-    return axios.get(`${API_URL}/api/files/metadata/${encodeURIComponent(itemPath)}`);
+    return axios.get(`${API_URL}/files/metadata/${encodeURIComponent(itemPath)}`);
   }
 
   /**
@@ -218,7 +218,7 @@ class FileService {
    * @returns {Promise} - Promise with file preview data
    */
   getFilePreview(filePath) {
-    return axios.get(`${API_URL}/api/files/preview/${encodeURIComponent(filePath)}`);
+    return axios.get(`${API_URL}/files/preview/${encodeURIComponent(filePath)}`);
   }
 }
 
