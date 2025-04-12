@@ -1,25 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import {
   Box,
   Typography,
-  Paper,
-  CircularProgress,
-  Alert,
-  Button,
-  Divider,
-  Chip,
-  IconButton,
-  Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  ListItemSecondaryAction
+  ListItemSecondaryAction,
+  IconButton,
+  Paper,
+  Alert,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Tooltip
 } from '@mui/material';
 import FolderIcon from '@mui/icons-material/Folder';
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -28,29 +25,16 @@ import DownloadIcon from '@mui/icons-material/Download';
 import PreviewIcon from '@mui/icons-material/Preview';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import styled from '@emotion/styled';
-import unifiedDocumentService from '../../services/unifiedDocumentService';
+import axios from 'axios';
+import { API_ENDPOINTS } from '../../config/api';
+import { UnifiedDocumentService } from '../../services/unifiedDocumentService';
 
+// Styled components
 const TranslationsContainer = styled(Paper)`
-  padding: 16px;
-  margin: 16px 0;
-  background-color: #f8f9fa;
-  border: 1px solid #e0e0e0;
+  padding: 0;
   border-radius: 8px;
-  max-height: 400px;
-  overflow-y: auto;
-`;
-
-const FileItem = styled(ListItem)`
   border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  margin-bottom: 8px;
-  background-color: #ffffff;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background-color: #f5f5f5;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  }
+  overflow: hidden;
 `;
 
 const EmptyState = styled(Box)`
@@ -58,96 +42,124 @@ const EmptyState = styled(Box)`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 32px 16px;
+  padding: 32px;
   text-align: center;
   color: #757575;
 `;
 
-interface TranslationsOutputProps {
-  nodeId: string;
-  refreshTrigger?: number;
-  onFileSelect?: (file: any) => void;
+const FileItem = styled(ListItem)`
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s;
+  
+  &:hover {
+    background-color: #f5f5f5;
+  }
+  
+  &:last-child {
+    border-bottom: none;
+  }
+`;
+
+// Types
+interface FileItem {
+  id: string;
+  name: string;
+  path: string;
+  type: string;
+  size?: number;
+  mimeType?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-const TranslationsOutput: React.FC<TranslationsOutputProps> = ({ 
-  nodeId, 
-  refreshTrigger = 0,
-  onFileSelect 
+interface TranslationsOutputProps {
+  onFileSelect?: (file: FileItem | null) => void;
+  unifiedDocumentService: UnifiedDocumentService;
+}
+
+const TranslationsOutput: React.FC<TranslationsOutputProps> = ({
+  onFileSelect,
+  unifiedDocumentService
 }) => {
+  const [files, setFiles] = useState<FileItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [files, setFiles] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
   const [previewDialogOpen, setPreviewDialogOpen] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<any>(null);
-  const [previewContent, setPreviewContent] = useState<string>('');
+  const [previewContent, setPreviewContent] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
   
-  // Load translations folder contents
+  // Load translations on component mount
   useEffect(() => {
-    const fetchTranslations = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        // Check if translations folder exists, if not create it
-        try {
-          await unifiedDocumentService.createFolder('translations', '/');
-          console.log('Translations folder created or already exists');
-        } catch (folderError) {
-          console.warn('Error with translations folder:', folderError);
-          // Continue anyway as it might already exist
-        }
-        
-        const response = await unifiedDocumentService.getDirectoryContents('/translations');
-        
-        if (response.success && response.data) {
-          // Filter to only show files, not folders
-          const filesList = response.data.filter(item => item.type !== 'folder');
-          setFiles(filesList);
-        } else {
-          setError('Failed to load translations');
-          setFiles([]);
-        }
-      } catch (err) {
-        console.error('Error fetching translations:', err);
-        setError('Error loading translations. Please try again.');
-        setFiles([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    loadTranslations();
+  }, []);
+  
+  // Load translations from the translations folder
+  const loadTranslations = async () => {
+    setLoading(true);
+    setError(null);
     
-    fetchTranslations();
-  }, [refreshTrigger]);
+    try {
+      const response = await axios.get(`${API_ENDPOINTS.FILES}/directory`, {
+        params: { path: '/translations' }
+      });
+      
+      if (response.data.success && response.data.contents) {
+        // Filter to only show files, not folders
+        const filesList = response.data.contents.filter((item: FileItem) => item.type !== 'folder');
+        setFiles(filesList);
+      } else {
+        setError('Failed to load translations');
+      }
+    } catch (error) {
+      console.error('Error loading translations:', error);
+      setError('Error loading translations. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle file selection
+  const handleSelect = (file: FileItem) => {
+    setSelectedFile(file);
+    if (onFileSelect) {
+      onFileSelect(file);
+    }
+  };
   
   // Handle file preview
-  const handlePreview = async (file: any) => {
+  const handlePreview = async (file: FileItem) => {
     setSelectedFile(file);
     setPreviewDialogOpen(true);
     setPreviewLoading(true);
+    setPreviewContent('');
     
     try {
-      const response = await unifiedDocumentService.getFileContent(file.path);
+      const response = await axios.get(`${API_ENDPOINTS.FILES}/content`, {
+        params: { path: file.path }
+      });
       
-      if (response.success && response.data) {
+      if (response.data.success && response.data.content) {
         setPreviewContent(response.data.content);
       } else {
-        setPreviewContent('Error loading file content');
+        setPreviewContent('Failed to load file content');
       }
-    } catch (err) {
-      console.error('Error fetching file content:', err);
-      setPreviewContent('Error loading file content');
+    } catch (error) {
+      console.error('Error loading file content:', error);
+      setPreviewContent('Error loading file content. Please try again.');
     } finally {
       setPreviewLoading(false);
     }
   };
   
   // Handle file download
-  const handleDownload = async (file: any) => {
+  const handleDownload = async (file: FileItem) => {
     try {
-      const response = await unifiedDocumentService.getFileDownloadUrl(file.path);
+      const response = await axios.get(`${API_ENDPOINTS.FILES}/download`, {
+        params: { path: file.path }
+      });
       
-      if (response.success && response.data) {
+      if (response.data.success && response.data.downloadUrl) {
         // Create a temporary anchor element and trigger download
         const link = document.createElement('a');
         link.href = response.data.downloadUrl;
@@ -156,31 +168,27 @@ const TranslationsOutput: React.FC<TranslationsOutputProps> = ({
         link.click();
         document.body.removeChild(link);
       } else {
-        setError('Failed to generate download link');
+        console.error('Failed to get download URL');
       }
-    } catch (err) {
-      console.error('Error downloading file:', err);
-      setError('Error downloading file. Please try again.');
-    }
-  };
-  
-  // Handle file selection
-  const handleSelect = (file: any) => {
-    if (onFileSelect) {
-      onFileSelect(file);
+    } catch (error) {
+      console.error('Error downloading file:', error);
     }
   };
   
   // Format date
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
     if (!dateString) return 'Unknown date';
     
     const date = new Date(dateString);
-    return date.toLocaleString();
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
   
-  // Render file icon based on mime type
-  const getFileIcon = (file: any) => {
+  // Get file icon based on mime type
+  const getFileIcon = (file: FileItem) => {
     const mimeType = file.mimeType || '';
     
     if (mimeType === 'application/pdf') {
@@ -201,6 +209,8 @@ const TranslationsOutput: React.FC<TranslationsOutputProps> = ({
     if (onFileSelect) {
       onFileSelect(null); // Clear selection
     }
+    
+    loadTranslations();
   };
   
   return (
@@ -239,7 +249,11 @@ const TranslationsOutput: React.FC<TranslationsOutputProps> = ({
         ) : (
           <List>
             {files.map((file) => (
-              <FileItem key={file.path} button onClick={() => handleSelect(file)}>
+              <FileItem 
+                key={file.path} 
+                onClick={() => handleSelect(file)}
+                sx={{ cursor: 'pointer' }}
+              >
                 <ListItemIcon>
                   {getFileIcon(file)}
                 </ListItemIcon>
@@ -314,7 +328,7 @@ const TranslationsOutput: React.FC<TranslationsOutputProps> = ({
           <Button onClick={() => setPreviewDialogOpen(false)}>Close</Button>
           {selectedFile && (
             <Button 
-              onClick={() => handleDownload(selectedFile)} 
+              onClick={() => selectedFile && handleDownload(selectedFile)} 
               color="primary"
               startIcon={<DownloadIcon />}
             >

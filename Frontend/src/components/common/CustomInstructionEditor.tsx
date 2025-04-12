@@ -1,57 +1,48 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
-  Typography,
   TextField,
+  Typography,
   Button,
-  Paper,
-  Divider,
   Chip,
-  FormHelperText,
-  IconButton,
-  Tooltip,
-  Select,
-  MenuItem,
+  Collapse,
+  Alert,
   FormControl,
   InputLabel,
+  Select,
+  MenuItem,
+  FormHelperText,
   CircularProgress,
-  Collapse,
-  Alert
+  SelectChangeEvent
 } from '@mui/material';
-import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import InfoIcon from '@mui/icons-material/Info';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import styled from '@emotion/styled';
+import axios from 'axios';
+import { API_ENDPOINTS } from '../../config/api';
 
-const InstructionContainer = styled(Paper)`
+// Styled components
+const InstructionContainer = styled(Box)`
+  width: 100%;
   padding: 16px;
-  margin: 16px 0;
-  background-color: #f8f9fa;
-  border: 1px solid #e0e0e0;
   border-radius: 8px;
+  background-color: #fafafa;
+  border: 1px solid #e0e0e0;
 `;
 
 const InstructionField = styled(TextField)`
-  margin: 12px 0;
+  margin-top: 16px;
+  margin-bottom: 8px;
+  
   .MuiOutlinedInput-root {
-    background-color: #ffffff;
-    &:hover {
-      background-color: #fafafa;
-    }
-    &.Mui-focused {
-      background-color: #fff;
-    }
+    background-color: white;
   }
-`;
-
-const ModelSelector = styled(FormControl)`
-  margin-bottom: 16px;
 `;
 
 const CharacterCounter = styled(Typography)`
   text-align: right;
-  margin-top: 4px;
   font-size: 0.75rem;
+  margin-top: 4px;
 `;
 
 const ExampleChip = styled(Chip)`
@@ -59,33 +50,49 @@ const ExampleChip = styled(Chip)`
   cursor: pointer;
 `;
 
-interface CustomInstructionProps {
+const ModelSelector = styled(FormControl)`
+  margin-top: 16px;
+  width: 100%;
+`;
+
+// Example instructions
+const instructionExamples = [
+  "Please transform these documents into a quarterly report using the provided template. Extract company information from the first document and financial data from the second document.",
+  "Create a comprehensive business proposal by combining the executive summary from document 1 with the financial projections from document 2, following the template structure.",
+  "Generate a client presentation by extracting key metrics from document 1 and case studies from document 2, formatting according to the template."
+];
+
+// Available Claude models
+const availableModels = [
+  { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku (Fast)' },
+  { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet (Balanced)' },
+  { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus (Powerful)' }
+];
+
+interface CustomInstructionEditorProps {
   value: string;
   onChange: (value: string) => void;
   error?: string;
   maxLength?: number;
-  selectedModel?: string;
+  showModelSelector?: boolean;
   onModelChange?: (model: string) => void;
-  availableModels?: Array<{id: string, name: string}>;
+  defaultModel?: string;
 }
 
-const CustomInstructionEditor: React.FC<CustomInstructionProps> = ({
+const CustomInstructionEditor: React.FC<CustomInstructionEditorProps> = ({
   value,
   onChange,
   error,
   maxLength = 2000,
-  selectedModel = 'claude-3-haiku-20240307',
+  showModelSelector = true,
   onModelChange,
-  availableModels = [
-    { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku (Fast)' },
-    { id: 'claude-3-sonnet-20240229', name: 'Claude 3 Sonnet (Balanced)' },
-    { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus (Powerful)' }
-  ]
+  defaultModel = 'claude-3-haiku-20240307'
 }) => {
   const [showExamples, setShowExamples] = useState(false);
   const [showTips, setShowTips] = useState(false);
-  const [analyzing, setAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(defaultModel);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
@@ -95,54 +102,51 @@ const CustomInstructionEditor: React.FC<CustomInstructionProps> = ({
   };
   
   const handleExampleClick = (example: string) => {
-    onChange(example);
-  };
-  
-  const handleModelChange = (e: React.ChangeEvent<{ value: unknown }>) => {
-    if (onModelChange) {
-      onModelChange(e.target.value as string);
+    if (example.length + value.length <= maxLength) {
+      onChange(value ? `${value}\n\n${example}` : example);
+    } else {
+      onChange(example.substring(0, maxLength));
     }
   };
   
-  const analyzeInstruction = () => {
-    setAnalyzing(true);
-    
-    // Simulate analysis (in a real implementation, this would call an API)
-    setTimeout(() => {
-      if (value.length < 20) {
-        setAnalysis("Your instruction is quite short. Consider adding more details about how you want the documents transformed.");
-      } else if (!value.toLowerCase().includes('template')) {
-        setAnalysis("Your instruction doesn't mention the template. Consider explaining how the template should be used.");
-      } else if (!value.toLowerCase().includes('format')) {
-        setAnalysis("Consider specifying the desired format or structure for the output document.");
-      } else {
-        setAnalysis("Your instruction looks good! It provides clear guidance for the transformation process.");
-      }
-      setAnalyzing(false);
-    }, 1500);
+  const handleModelChange = (e: SelectChangeEvent<string>) => {
+    const model = e.target.value;
+    setSelectedModel(model);
+    if (onModelChange) {
+      onModelChange(model);
+    }
   };
   
-  const instructionExamples = [
-    "Please transform these 2 documents into the format specified by the template. Maintain the structure of the template while inserting relevant content from the source documents.",
-    "Extract key information from the source documents and populate the template. Ensure all sections of the template are filled with appropriate content.",
-    "Create a new document using the template format. Use the first document for sections A and B, and the second document for sections C and D."
-  ];
+  const analyzeInstruction = async () => {
+    if (!value.trim()) return;
+    
+    setAnalyzing(true);
+    try {
+      const response = await axios.post(`${API_ENDPOINTS.CLAUDE}/analyze-instruction`, {
+        instruction: value
+      });
+      
+      if (response.data.success) {
+        setAnalysis(response.data.analysis);
+      } else {
+        setAnalysis('Could not analyze instruction. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error analyzing instruction:', error);
+      setAnalysis('Error analyzing instruction. Please try again.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
   
   return (
-    <InstructionContainer elevation={0}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="subtitle1" fontWeight="medium">
-          Custom Instruction for Claude AI
-        </Typography>
-        <Tooltip title="Claude will use this instruction to understand how to transform your documents using the template">
-          <IconButton size="small">
-            <HelpOutlineIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Box>
+    <InstructionContainer>
+      <Typography variant="subtitle1" gutterBottom>
+        Instructions for Claude AI
+      </Typography>
       
-      {onModelChange && (
-        <ModelSelector fullWidth size="small">
+      {showModelSelector && (
+        <ModelSelector size="small">
           <InputLabel id="model-select-label">AI Model</InputLabel>
           <Select
             labelId="model-select-label"

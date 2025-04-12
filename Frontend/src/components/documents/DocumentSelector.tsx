@@ -2,263 +2,246 @@ import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
-  CircularProgress,
   List,
   ListItem,
   ListItemIcon,
   ListItemText,
-  Divider,
-  Paper,
-  InputBase,
-  IconButton,
   Breadcrumbs,
   Link,
-  Chip,
+  CircularProgress,
   Alert,
+  InputBase,
+  IconButton,
   Grid,
-  Card,
-  CardContent,
+  Chip,
   Tooltip
 } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import FolderIcon from '@mui/icons-material/Folder';
-import DescriptionIcon from '@mui/icons-material/Description';
+import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
 import ImageIcon from '@mui/icons-material/Image';
-import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import DescriptionIcon from '@mui/icons-material/Description';
+import CodeIcon from '@mui/icons-material/Code';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
-import HomeIcon from '@mui/icons-material/Home';
 import styled from '@emotion/styled';
-import unifiedDocumentService from '../../services/unifiedDocumentService';
+import axios from 'axios';
+import { API_ENDPOINTS } from '../../config/api';
 
+// Styled components
 const DocumentSelectorContainer = styled(Box)`
   display: flex;
   flex-direction: column;
-  height: 500px;
+  height: 100%;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
   overflow: hidden;
 `;
 
-const SearchBar = styled(Paper)`
-  padding: 2px 4px;
+const SearchBar = styled(Box)`
+  padding: 8px 16px;
   display: flex;
   align-items: center;
-  margin-bottom: 16px;
-  border: 1px solid #e0e0e0;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #f5f5f5;
 `;
 
 const BreadcrumbsContainer = styled(Box)`
-  padding: 8px 0;
-  margin-bottom: 8px;
-`;
-
-const DocumentList = styled(Box)`
-  flex-grow: 1;
-  overflow-y: auto;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  padding: 8px 16px;
+  border-bottom: 1px solid #e0e0e0;
   background-color: #fafafa;
 `;
 
-const DocumentCard = styled(Card)`
+const DocumentList = styled(Box)`
+  flex: 1;
+  overflow-y: auto;
+  background-color: white;
+`;
+
+const DocumentCard = styled(Box)`
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
   height: 100%;
-  display: flex;
-  flex-direction: column;
   
   &:hover {
+    border-color: #2196f3;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   }
 `;
 
-const DocumentCardContent = styled(CardContent)`
-  flex-grow: 1;
+const DocumentCardContent = styled(Box)`
   display: flex;
   flex-direction: column;
-  padding: 12px !important;
-  
-  &:last-child {
-    padding-bottom: 12px !important;
-  }
+  align-items: center;
+  gap: 8px;
 `;
 
 const FileIconContainer = styled(Box)`
   display: flex;
   justify-content: center;
+  align-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background-color: #f5f5f5;
   margin-bottom: 8px;
 `;
 
+// Types
+interface FileItem {
+  id: string;
+  name: string;
+  path: string;
+  type: string;
+  size?: number;
+  mimeType?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 interface DocumentSelectorProps {
-  onSelect: (document: any) => void;
+  onSelect: (document: FileItem) => void;
   fileTypeFilter?: string[];
   initialPath?: string;
 }
 
-const DocumentSelector: React.FC<DocumentSelectorProps> = ({ 
-  onSelect, 
+const DocumentSelector: React.FC<DocumentSelectorProps> = ({
+  onSelect,
   fileTypeFilter,
-  initialPath = '/' 
+  initialPath = '/'
 }) => {
-  const [loading, setLoading] = useState(true);
+  const [contents, setContents] = useState<FileItem[]>([]);
+  const [filteredContents, setFilteredContents] = useState<FileItem[]>([]);
   const [currentPath, setCurrentPath] = useState(initialPath);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [contents, setContents] = useState<any[]>([]);
-  const [filteredContents, setFilteredContents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
-  // Load directory contents
+  // Fetch directory contents
   useEffect(() => {
-    const fetchContents = async () => {
-      setLoading(true);
-      setError(null);
-      
-      try {
-        const response = await unifiedDocumentService.getDirectoryContents(currentPath);
-        
-        if (response.success && response.data) {
-          setContents(response.data);
-          
-          // Apply file type filter if provided
-          if (fileTypeFilter && fileTypeFilter.length > 0) {
-            const filtered = response.data.filter(item => 
-              item.type === 'folder' || 
-              fileTypeFilter.includes(item.mimeType || '')
-            );
-            setFilteredContents(filtered);
-          } else {
-            setFilteredContents(response.data);
-          }
-        } else {
-          setError('Failed to load directory contents');
-          setContents([]);
-          setFilteredContents([]);
-        }
-      } catch (err) {
-        console.error('Error fetching directory contents:', err);
-        setError('Error loading files. Please try again.');
-        setContents([]);
-        setFilteredContents([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    fetchContents();
-  }, [currentPath, fileTypeFilter]);
+    fetchDirectoryContents(currentPath);
+  }, [currentPath]);
   
   // Filter contents based on search query
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      // If file type filter is applied, use the already filtered contents
+    if (searchQuery.trim() === '') {
       setFilteredContents(contents);
-      return;
-    }
-    
-    const query = searchQuery.toLowerCase();
-    let filtered = contents.filter(item => 
-      item.name.toLowerCase().includes(query)
-    );
-    
-    // Apply file type filter if provided
-    if (fileTypeFilter && fileTypeFilter.length > 0) {
-      filtered = filtered.filter(item => 
-        item.type === 'folder' || 
-        fileTypeFilter.includes(item.mimeType || '')
+    } else {
+      const query = searchQuery.toLowerCase();
+      setFilteredContents(
+        contents.filter(item => 
+          item.name.toLowerCase().includes(query)
+        )
       );
     }
-    
-    setFilteredContents(filtered);
-  }, [searchQuery, contents, fileTypeFilter]);
+  }, [searchQuery, contents]);
   
-  // Navigate to a folder
-  const navigateToFolder = (folderPath: string) => {
-    setCurrentPath(folderPath);
-    setSearchQuery('');
+  const fetchDirectoryContents = async (path: string) => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axios.get(`${API_ENDPOINTS.FILES}/directory`, {
+        params: { path }
+      });
+      
+      if (response.data.success) {
+        // Apply file type filter if provided
+        if (fileTypeFilter && fileTypeFilter.length > 0) {
+          const filtered = response.data.contents.filter((item: FileItem) => 
+            item.type === 'folder' || 
+            fileTypeFilter.includes(item.mimeType || '')
+          );
+          setContents(filtered);
+        } else {
+          setContents(response.data.contents);
+        }
+      } else {
+        setError(response.data.error || 'Failed to load directory contents');
+      }
+    } catch (error) {
+      console.error('Error fetching directory contents:', error);
+      setError('Error loading directory contents. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
   
-  // Navigate to parent folder
+  const handleSelectDocument = (document: FileItem) => {
+    if (document.type === 'folder') {
+      setCurrentPath(document.path);
+    } else {
+      onSelect(document);
+    }
+  };
+  
   const navigateToParent = () => {
     if (currentPath === '/') return;
     
     const pathParts = currentPath.split('/').filter(Boolean);
     pathParts.pop();
     const parentPath = pathParts.length === 0 ? '/' : `/${pathParts.join('/')}`;
-    
     setCurrentPath(parentPath);
-    setSearchQuery('');
   };
   
-  // Handle document selection
-  const handleSelectDocument = (document: any) => {
-    if (document.type === 'folder') {
-      navigateToFolder(document.path);
-    } else {
-      onSelect(document);
-    }
+  const navigateToFolder = (path: string) => {
+    setCurrentPath(path);
   };
   
-  // Get file icon based on mime type
-  const getFileIcon = (item: any) => {
-    if (item.type === 'folder') {
-      return <FolderIcon sx={{ fontSize: 40, color: '#FFC107' }} />;
+  // Get appropriate icon for file type
+  const getFileIcon = (file: FileItem) => {
+    if (file.type === 'folder') {
+      return <FolderIcon color="primary" />;
     }
     
-    const mimeType = item.mimeType || '';
+    const mimeType = file.mimeType || '';
     
-    if (mimeType.startsWith('image/')) {
-      return <ImageIcon sx={{ fontSize: 40, color: '#4CAF50' }} />;
-    } else if (mimeType === 'application/pdf') {
-      return <PictureAsPdfIcon sx={{ fontSize: 40, color: '#F44336' }} />;
-    } else if (mimeType.includes('document') || mimeType.includes('text')) {
-      return <DescriptionIcon sx={{ fontSize: 40, color: '#2196F3' }} />;
+    if (mimeType.includes('pdf')) {
+      return <PictureAsPdfIcon color="error" />;
+    } else if (mimeType.includes('image')) {
+      return <ImageIcon color="success" />;
+    } else if (mimeType.includes('text') || mimeType.includes('document')) {
+      return <DescriptionIcon color="info" />;
+    } else if (mimeType.includes('javascript') || mimeType.includes('json') || mimeType.includes('html')) {
+      return <CodeIcon color="secondary" />;
     } else {
-      return <InsertDriveFileIcon sx={{ fontSize: 40, color: '#9E9E9E' }} />;
+      return <InsertDriveFileIcon color="action" />;
     }
   };
   
-  // Generate breadcrumbs
+  // Render breadcrumbs
   const renderBreadcrumbs = () => {
-    if (currentPath === '/') {
-      return (
-        <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />}>
-          <Typography color="text.primary" sx={{ display: 'flex', alignItems: 'center' }}>
-            <HomeIcon sx={{ mr: 0.5, fontSize: 18 }} />
-            Root
-          </Typography>
-        </Breadcrumbs>
-      );
-    }
-    
     const pathParts = currentPath.split('/').filter(Boolean);
     
     return (
       <Breadcrumbs separator={<NavigateNextIcon fontSize="small" />}>
         <Link
-          underline="hover"
           color="inherit"
-          sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-          onClick={() => navigateToFolder('/')}
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            navigateToFolder('/');
+          }}
         >
-          <HomeIcon sx={{ mr: 0.5, fontSize: 18 }} />
-          Root
+          Home
         </Link>
         
         {pathParts.map((part, index) => {
           const path = `/${pathParts.slice(0, index + 1).join('/')}`;
-          const isLast = index === pathParts.length - 1;
           
-          return isLast ? (
-            <Typography key={path} color="text.primary">
-              {part}
-            </Typography>
-          ) : (
+          return (
             <Link
               key={path}
-              underline="hover"
               color="inherit"
-              sx={{ cursor: 'pointer' }}
-              onClick={() => navigateToFolder(path)}
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                navigateToFolder(path);
+              }}
             >
               {part}
             </Link>
@@ -332,13 +315,14 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({
             {currentPath !== '/' && (
               <Box sx={{ mb: 2 }}>
                 <ListItem 
-                  button 
+                  component="div"
                   onClick={navigateToParent}
                   sx={{ 
                     borderRadius: 1,
                     border: '1px solid #e0e0e0',
                     mb: 1,
-                    bgcolor: '#f5f5f5'
+                    bgcolor: '#f5f5f5',
+                    cursor: 'pointer'
                   }}
                 >
                   <ListItemIcon>
