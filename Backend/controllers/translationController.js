@@ -141,11 +141,10 @@ Please provide the transformed content that follows the template format while in
       // Generate output filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const outputFilename = `translated_document_${timestamp}.txt`;
-      const outputPath = path.join(translationsFolder, outputFilename);
+      const outputPath = path.join('documents', 'translations', outputFilename);
       
       // Save the translated content
       try {
-        console.log('FileService methods:', Object.keys(fileService));
         console.log('Saving translated document to:', outputPath);
         
         const savedFile = await fileService.saveFile(
