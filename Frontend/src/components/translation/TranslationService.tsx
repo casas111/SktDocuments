@@ -17,6 +17,8 @@ import CustomInstructionEditor from '../common/CustomInstructionEditor';
 import DocumentSelector from '../documents/DocumentSelector';
 import TranslationsOutput from '../documents/TranslationsOutput';
 import { UnifiedDocumentService } from '../../services/unifiedDocumentService';
+import { Node } from 'reactflow';
+import { Position } from 'reactflow';
 
 // Styled components
 const TranslationServiceContainer = styled(Box)`
@@ -57,6 +59,16 @@ interface NotificationState {
   severity: AlertColor;
 }
 
+interface EnhancedTranslationNodeData {
+  label: string;
+  description: string;
+  sourceDoc1: FileItem | null;
+  sourceDoc2: FileItem | null;
+  templateDoc: FileItem | null;
+  instruction: string;
+  model: string;
+}
+
 const TranslationService: React.FC = () => {
   // Document state
   const [sourceDoc1, setSourceDoc1] = useState<FileItem | null>(null);
@@ -79,7 +91,7 @@ const TranslationService: React.FC = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Node data for preview
-  const [nodeData, setNodeData] = useState({
+  const [nodeData, setNodeData] = useState<EnhancedTranslationNodeData>({
     label: 'Document Translation',
     description: 'Transforms documents using Claude AI',
     sourceDoc1: null,
@@ -378,6 +390,15 @@ const TranslationService: React.FC = () => {
               id="preview-node"
               data={nodeData}
               selected={false}
+              dragging={false}
+              targetPosition={Position.Left}
+              sourcePosition={Position.Right}
+              zIndex={1}
+              type="translation"
+              isConnectable={true}
+              xPos={0}
+              yPos={0}
+              dragHandle=".drag-handle"
             />
           </Box>
         </Box>

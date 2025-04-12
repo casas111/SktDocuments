@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Node, Edge } from 'reactflow';
+import { Node, Edge, XYPosition } from 'reactflow';
 import { ReactFlowProvider } from 'reactflow';
 import { 
   Box, 
@@ -40,8 +40,8 @@ interface ApiWorkflow {
   name: string;
   description: string;
   processes: Process[];
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface ApiWorkflowList {
@@ -105,19 +105,32 @@ interface WorkflowData {
   updatedAt?: string;
 }
 
+interface NodeData {
+  label: string;
+  description: string;
+  icon: string;
+  capabilities: string[];
+}
+
+type WorkflowNode = Node<NodeData> & {
+  id: string;
+  type: string;
+  position: XYPosition;
+  data: NodeData;
+};
+
 // Conversion functions
 const convertApiToWorkflowData = (apiWorkflow: ApiWorkflow): WorkflowData => {
   // Convert processes to nodes and edges
-  const nodes: Node[] = apiWorkflow.processes.map(process => ({
+  const nodes: WorkflowNode[] = apiWorkflow.processes.map(process => ({
     id: process.id,
-    type: process.type,
+    type: process.type || 'default',
     position: { x: 0, y: 0 }, // Default position, will be updated by layout
     data: {
       label: process.metadata.description,
       description: process.metadata.description,
-      input: {},
-      output: {},
-      metadata: process.metadata
+      icon: '',
+      capabilities: []
     }
   }));
 
@@ -161,7 +174,7 @@ const convertWorkflowDataToApi = (workflowData: WorkflowData): Omit<ApiWorkflow,
 };
 
 const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onNodesChange, onEdgesChange, workflowId }) => {
-  const [nodes, setNodes] = useState<Node[]>([]);
+  const [nodes, setNodes] = useState<WorkflowNode[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSaveDialogOpen, setIsSaveDialogOpen] = useState(false);
@@ -250,33 +263,31 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onNodesChange, onEdge
   }, [nodes, edges, workflowName, currentWorkflowId]);
 
   const loadWorkflow = async (id: string) => {
-    setLoading(true);
     try {
+      setLoading(true);
       const response = await getWorkflow(id);
       if (response.success && response.data) {
-        const workflowData = convertApiToWorkflowData(response.data as ApiWorkflow);
-        setNodes(workflowData.nodes);
+        const workflowData = convertApiToWorkflowData(response.data);
+        const workflowNodes: WorkflowNode[] = workflowData.nodes.map(node => ({
+          ...node,
+          type: node.type || 'default',
+          data: {
+            ...node.data,
+            icon: node.data.icon || '',
+            capabilities: node.data.capabilities || []
+          }
+        }));
+        setNodes(workflowNodes);
         setEdges(workflowData.edges);
         setWorkflowName(workflowData.name);
-        setCurrentWorkflowId(workflowData.id);
-        
-        // Update node counter to be higher than any existing node id
-        const highestId = Math.max(
-          ...workflowData.nodes.map((node: Node) => {
-            const idParts = node.id.split('-');
-            return parseInt(idParts[idParts.length - 1]) || 0;
-          }),
-          0
-        );
-        nodeIdCounter.current = highestId + 1;
-        
-        showNotification('Workflow loaded successfully', 'success');
+        setCurrentWorkflowId(id);
+        setSuccess('Workflow loaded successfully');
       } else {
-        showNotification('Failed to load workflow', 'error');
+        setError(response.error || 'Failed to load workflow');
       }
     } catch (error) {
+      setError('Error loading workflow');
       console.error('Error loading workflow:', error);
-      showNotification('Error loading workflow', 'error');
     } finally {
       setLoading(false);
     }
@@ -310,48 +321,41 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onNodesChange, onEdge
   };
 
   const handleAddNode = (type: string) => {
-    setCurrentNodeType(type);
-    setNodeName('');
-    if (type === NODE_TYPES.communicationNode) {
-      setCommunicationMode('send');
-    }
-    setIsDialogOpen(true);
+    const newNode: WorkflowNode = {
+      id: `node-${nodeIdCounter.current++}`,
+      type: type || 'default',
+      position: { x: 100, y: 100 },
+      data: {
+        label: type,
+        description: '',
+        icon: '',
+        capabilities: []
+      }
+    };
+    setNodes(prevNodes => [...prevNodes, newNode]);
   };
 
   const handleCreateNode = () => {
-    const id = `${currentNodeType}-${nodeIdCounter.current}`;
-    nodeIdCounter.current += 1;
-    
-    // Calculate position to place new nodes in a cascading pattern
-    const position = {
-      x: 100 + ((nodeIdCounter.current - 1) % 3) * 50,
-      y: 100 + Math.floor((nodeIdCounter.current - 1) / 3) * 100,
-    };
-    
-    const newNode = {
-      ...getNodeDefaults(currentNodeType, position, nodeName || `New ${currentNodeType}`),
-      id: id,
-    } as Node;
-    
-    // Add mode for communication nodes
-    if (currentNodeType === NODE_TYPES.communicationNode) {
-      newNode.data = {
-        ...newNode.data,
-        mode: communicationMode
-      };
+    if (!currentNodeType) {
+      setError('Please select a node type');
+      return;
     }
-    
-    // Add delete handler to node data
-    newNode.data = {
-      ...newNode.data,
-      onDelete: () => handleDeleteNode(id)
+
+    const newNode: WorkflowNode = {
+      id: `node-${nodeIdCounter.current++}`,
+      type: currentNodeType,
+      position: { x: 100, y: 100 },
+      data: {
+        label: nodeName || currentNodeType,
+        description: '',
+        icon: '',
+        capabilities: []
+      }
     };
-    
-    const updatedNodes = [...nodes, newNode];
-    setNodes(updatedNodes);
-    if (onNodesChange) {
-      onNodesChange(updatedNodes);
-    }
+
+    setNodes(prevNodes => [...prevNodes, newNode]);
+    setNodeName('');
+    setCurrentNodeType('');
     setIsDialogOpen(false);
   };
 
@@ -522,7 +526,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onNodesChange, onEdge
     setIsLoadDialogOpen(false);
   };
 
-  const handleNodesChange = (newNodes: Node[]) => {
+  const handleNodesChange = (newNodes: WorkflowNode[]) => {
     setNodes(newNodes);
     if (onNodesChange) {
       onNodesChange(newNodes);
@@ -643,8 +647,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onNodesChange, onEdge
           <WorkflowCanvas
             initialNodes={nodes}
             initialEdges={edges}
-            onNodesChange={handleNodesChange}
-            onEdgesChange={handleEdgesChange}
+            onSave={handleSaveWorkflow}
             readOnly={false}
           />
         </ReactFlowProvider>

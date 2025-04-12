@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, FC } from 'react';
 import ReactFlow, {
   Controls,
   Background,
@@ -14,6 +14,7 @@ import ReactFlow, {
   Panel,
   ReactFlowProvider,
   useReactFlow,
+  XYPosition,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import {
@@ -111,22 +112,61 @@ const WorkflowInfo = styled(Box)`
   max-width: 300px;
 `;
 
+interface NodeData {
+  label: string;
+  description: string;
+  icon: string;
+  capabilities: string[];
+}
+
+type WorkflowNode = Node<NodeData> & {
+  id: string;
+  type: string;
+  position: XYPosition;
+  data: NodeData;
+};
+
+interface TemplateNode {
+  style: {
+    width: number;
+    padding: number;
+    borderRadius: number;
+    borderWidth: number;
+    borderStyle: string;
+    borderColor: string;
+    backgroundColor: string;
+  };
+  data: {
+    label: string;
+    description: string;
+    icon: string;
+    capabilities: string[];
+  };
+}
+
+interface WorkflowTemplate {
+  nodes: TemplateNode[];
+  edges: Edge[];
+  name: string;
+  description: string;
+}
+
 interface WorkflowCanvasProps {
-  initialNodes?: Node[];
-  initialEdges?: Edge[];
-  onSave?: (nodes: Node[], edges: Edge[]) => void;
+  initialNodes: WorkflowNode[];
+  initialEdges: Edge[];
+  onSave: (nodes: WorkflowNode[], edges: Edge[]) => void;
   readOnly?: boolean;
 }
 
-const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
-  initialNodes = [],
-  initialEdges = [],
+const WorkflowCanvas: FC<WorkflowCanvasProps> = ({
+  initialNodes,
+  initialEdges,
   onSave,
   readOnly = false,
 }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState<NodeData>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
+  const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
   const [templateMenuAnchor, setTemplateMenuAnchor] = useState<null | HTMLElement>(null);
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -141,9 +181,19 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   // Initialize with a default workflow if empty
   useEffect(() => {
     if (initialNodes.length === 0 && initialEdges.length === 0) {
-      // Use the translation workflow template as default
       const template = WORKFLOW_TEMPLATES.translationWorkflow;
-      setNodes(template.nodes);
+      const newNodes: WorkflowNode[] = template.nodes.map((node, index) => ({
+        id: `node-${index}`,
+        type: 'default',
+        position: { x: index * 200, y: 0 },
+        data: {
+          label: node.data.label,
+          description: node.data.description,
+          icon: node.data.icon,
+          capabilities: node.data.capabilities
+        }
+      }));
+      setNodes(newNodes);
       setEdges(template.edges);
       setWorkflowName(template.name);
       setWorkflowDescription(template.description);
@@ -162,20 +212,25 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   );
   
   const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    setSelectedNode(node);
+    setSelectedNode(node as WorkflowNode);
   }, []);
   
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
   }, []);
   
-  const handleAddNode = (type: string) => {
-    const position = reactFlowInstance.project({
-      x: Math.random() * 400 + 50,
-      y: Math.random() * 400 + 50,
-    });
-    
-    const newNode = getNodeDefaults(type, position);
+  const handleAddNode = (type: string, position: XYPosition) => {
+    const newNode: WorkflowNode = {
+      id: `${type}-${Date.now()}`,
+      type,
+      position,
+      data: {
+        label: type.charAt(0).toUpperCase() + type.slice(1),
+        description: '',
+        icon: 'default',
+        capabilities: []
+      }
+    };
     setNodes((nds) => [...nds, newNode]);
     setMenuAnchor(null);
   };
@@ -207,7 +262,18 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   
   const handleLoadTemplate = (templateKey: keyof typeof WORKFLOW_TEMPLATES) => {
     const template = WORKFLOW_TEMPLATES[templateKey];
-    setNodes(template.nodes);
+    const newNodes: WorkflowNode[] = template.nodes.map((node, index) => ({
+      id: `node-${index}`,
+      type: 'default',
+      position: { x: index * 200, y: 0 },
+      data: {
+        label: node.data.label,
+        description: node.data.description,
+        icon: node.data.icon,
+        capabilities: node.data.capabilities
+      }
+    }));
+    setNodes(newNodes);
     setEdges(template.edges);
     setWorkflowName(template.name);
     setWorkflowDescription(template.description);
@@ -226,7 +292,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   
   const handleSaveConfirm = () => {
     if (onSave) {
-      onSave(nodes, edges);
+      onSave(nodes as WorkflowNode[], edges);
     }
     setSaveDialogOpen(false);
     
@@ -279,7 +345,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
             <PaletteItem
               variant="outlined"
               size="small"
-              onClick={() => handleAddNode(NODE_TYPES.communicationNode)}
+              onClick={(event) => handleAddNode(NODE_TYPES.communicationNode, event.currentTarget.dataset.position ? JSON.parse(event.currentTarget.dataset.position) : { x: 0, y: 0 })}
               sx={{ borderColor: '#2196f3', color: '#2196f3' }}
             >
               Communication Node
@@ -287,7 +353,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
             <PaletteItem
               variant="outlined"
               size="small"
-              onClick={() => handleAddNode(NODE_TYPES.translationNode)}
+              onClick={(event) => handleAddNode(NODE_TYPES.translationNode, event.currentTarget.dataset.position ? JSON.parse(event.currentTarget.dataset.position) : { x: 0, y: 0 })}
               sx={{ borderColor: '#4caf50', color: '#4caf50' }}
             >
               Translation Node
@@ -295,7 +361,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
             <PaletteItem
               variant="outlined"
               size="small"
-              onClick={() => handleAddNode(NODE_TYPES.simetrikNode)}
+              onClick={(event) => handleAddNode(NODE_TYPES.simetrikNode, event.currentTarget.dataset.position ? JSON.parse(event.currentTarget.dataset.position) : { x: 0, y: 0 })}
               sx={{ borderColor: '#9c27b0', color: '#9c27b0' }}
             >
               Simetrik SaaS Node
@@ -303,7 +369,7 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
             <PaletteItem
               variant="outlined"
               size="small"
-              onClick={() => handleAddNode(NODE_TYPES.comparisonNode)}
+              onClick={(event) => handleAddNode(NODE_TYPES.comparisonNode, event.currentTarget.dataset.position ? JSON.parse(event.currentTarget.dataset.position) : { x: 0, y: 0 })}
               sx={{ borderColor: '#ff9800', color: '#ff9800' }}
             >
               Comparison Node
@@ -410,19 +476,19 @@ const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         open={Boolean(menuAnchor)}
         onClose={handleCloseMenu}
       >
-        <MenuItem onClick={() => handleAddNode(NODE_TYPES.communicationNode)}>
+        <MenuItem onClick={(event) => handleAddNode(NODE_TYPES.communicationNode, event.currentTarget.dataset.position ? JSON.parse(event.currentTarget.dataset.position) : { x: 0, y: 0 })}>
           Communication Node
         </MenuItem>
-        <MenuItem onClick={() => handleAddNode(NODE_TYPES.translationNode)}>
+        <MenuItem onClick={(event) => handleAddNode(NODE_TYPES.translationNode, event.currentTarget.dataset.position ? JSON.parse(event.currentTarget.dataset.position) : { x: 0, y: 0 })}>
           Translation Node
         </MenuItem>
-        <MenuItem onClick={() => handleAddNode(NODE_TYPES.simetrikNode)}>
+        <MenuItem onClick={(event) => handleAddNode(NODE_TYPES.simetrikNode, event.currentTarget.dataset.position ? JSON.parse(event.currentTarget.dataset.position) : { x: 0, y: 0 })}>
           Simetrik SaaS Node
         </MenuItem>
-        <MenuItem onClick={() => handleAddNode(NODE_TYPES.comparisonNode)}>
+        <MenuItem onClick={(event) => handleAddNode(NODE_TYPES.comparisonNode, event.currentTarget.dataset.position ? JSON.parse(event.currentTarget.dataset.position) : { x: 0, y: 0 })}>
           Comparison Node
         </MenuItem>
-        <MenuItem onClick={() => handleAddNode(NODE_TYPES.redNode)}>
+        <MenuItem onClick={(event) => handleAddNode(NODE_TYPES.redNode, event.currentTarget.dataset.position ? JSON.parse(event.currentTarget.dataset.position) : { x: 0, y: 0 })}>
           Red Node
         </MenuItem>
       </Menu>
