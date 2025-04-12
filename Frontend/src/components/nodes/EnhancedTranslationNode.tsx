@@ -1,14 +1,14 @@
-import React from 'react';
-import { Handle, Position, NodeProps } from 'reactflow';
+import React, { useState, useCallback } from 'react';
+import { Node, NodeProps, Handle, Position } from 'reactflow';
 import {
   Box,
   Typography,
-  Chip,
+  Paper,
   Divider,
-  Tooltip,
   IconButton,
+  Tooltip,
   Collapse,
-  Paper
+  Chip
 } from '@mui/material';
 import TranslateIcon from '@mui/icons-material/Translate';
 import DescriptionIcon from '@mui/icons-material/Description';
@@ -18,35 +18,26 @@ import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ErrorIcon from '@mui/icons-material/Error';
 import styled from '@emotion/styled';
-import CustomInstructionEditor from '../common/CustomInstructionEditor';
-import DocumentSelector from '../documents/DocumentSelector';
 
-// Styled components for the node
+// Styled components
 const NodeContainer = styled(Paper)`
-  padding: 12px;
+  width: 280px;
   border-radius: 8px;
-  min-width: 280px;
-  max-width: 320px;
-  background-color: #e8f5e9;
-  border: 1px solid #4caf50;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  }
+  overflow: hidden;
 `;
 
 const NodeHeader = styled(Box)`
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: #f5f5f5;
 `;
 
 const NodeTitle = styled(Box)`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 `;
 
 const NodeIcon = styled(Box)`
@@ -56,29 +47,29 @@ const NodeIcon = styled(Box)`
   width: 32px;
   height: 32px;
   border-radius: 16px;
-  background-color: #4caf50;
-  color: white;
+  background-color: #e3f2fd;
+  color: #1976d2;
 `;
 
 const NodeContent = styled(Box)`
-  margin-top: 8px;
+  padding: 16px;
 `;
 
 const DocumentItem = styled(Box)`
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-top: 8px;
+  margin-bottom: 8px;
   padding: 4px 8px;
-  border-radius: 4px;
   background-color: #f5f5f5;
-  margin-bottom: 4px;
-  font-size: 0.8rem;
+  border-radius: 4px;
 `;
 
 const ModelChip = styled(Chip)`
-  margin-top: 8px;
+  margin-top: 12px;
   background-color: #e3f2fd;
-  border: 1px solid #2196f3;
+  color: #1976d2;
   font-size: 0.75rem;
 `;
 
@@ -86,30 +77,37 @@ const ModelChip = styled(Chip)`
 interface FileItem {
   id?: string;
   name: string;
-  path?: string;
+  path: string;
   type?: string;
-  size?: number;
   mimeType?: string;
+  size?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
-interface EnhancedTranslationNodeData {
+interface TranslationNodeData {
   label: string;
-  description?: string;
+  description: string;
   sourceDoc1: FileItem | null;
   sourceDoc2: FileItem | null;
   templateDoc: FileItem | null;
   instruction: string;
   model: string;
-  status?: 'idle' | 'processing' | 'success' | 'error';
-  outputDoc?: FileItem | null;
+  status: 'idle' | 'processing' | 'success' | 'error';
+  outputDoc: FileItem | null;
 }
 
-const EnhancedTranslationNode: React.FC<NodeProps<EnhancedTranslationNodeData>> = ({ 
+// Enhanced Translation Node Component
+const EnhancedTranslationNode: React.FC<NodeProps<TranslationNodeData>> = ({ 
   id, 
   data,
-  selected
+  selected,
+  isConnectable,
+  targetPosition = Position.Left,
+  sourcePosition = Position.Right
 }) => {
-  const [expanded, setExpanded] = React.useState(false);
+  // State
+  const [expanded, setExpanded] = useState(false);
   
   // Default data if not provided
   const nodeData = {
@@ -154,8 +152,9 @@ const EnhancedTranslationNode: React.FC<NodeProps<EnhancedTranslationNodeData>> 
       {/* Input handle */}
       <Handle
         type="target"
-        position={Position.Left}
+        position={targetPosition}
         style={{ background: '#4caf50', width: 10, height: 10 }}
+        isConnectable={isConnectable}
       />
       
       <NodeHeader>
@@ -255,14 +254,29 @@ const EnhancedTranslationNode: React.FC<NodeProps<EnhancedTranslationNodeData>> 
               {nodeData.instruction || 'No instructions provided'}
             </Box>
           </Box>
+          
+          {nodeData.outputDoc && (
+            <Box sx={{ mt: 2 }}>
+              <Typography variant="caption" color="text.secondary">
+                Output Document
+              </Typography>
+              <DocumentItem>
+                <DescriptionIcon fontSize="small" sx={{ color: '#4caf50' }} />
+                <Typography variant="caption" noWrap sx={{ flex: 1 }}>
+                  {nodeData.outputDoc.name}
+                </Typography>
+              </DocumentItem>
+            </Box>
+          )}
         </Collapse>
       </NodeContent>
       
       {/* Output handle */}
       <Handle
         type="source"
-        position={Position.Right}
+        position={sourcePosition}
         style={{ background: '#4caf50', width: 10, height: 10 }}
+        isConnectable={isConnectable}
       />
     </NodeContainer>
   );
