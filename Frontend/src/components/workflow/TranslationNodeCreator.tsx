@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { Box, Button, Dialog, DialogContent, DialogTitle, DialogActions } from '@mui/material';
-import TranslationManager from '../components/translation/TranslationManager';
+import TranslationManager from '../../components/translation/TranslationManager';
 import { useReactFlow, Node } from 'reactflow';
 
 // Types

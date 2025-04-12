@@ -125,10 +125,19 @@ class FileController {
 
       const file = await fileService.getFile(filePath);
       
-      res.setHeader('Content-Disposition', `attachment; filename="${path.basename(filePath)}"`);
-      res.setHeader('Content-Type', 'application/octet-stream');
+      if (!file || !file.metadata) {
+        return res.status(404).json({
+          success: false,
+          message: 'File not found'
+        });
+      }
+
+      const absolutePath = path.join(__dirname, '..', 'storage', 'documents', filePath);
       
-      return res.download(file.path, file.name);
+      res.setHeader('Content-Disposition', `attachment; filename="${file.metadata.name}"`);
+      res.setHeader('Content-Type', file.metadata.mimeType || 'application/octet-stream');
+      
+      return res.download(absolutePath, file.metadata.name);
     } catch (error) {
       console.error('Error downloading file:', error);
       return res.status(500).json({

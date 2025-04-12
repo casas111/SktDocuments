@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Box, Typography } from '@mui/material';
 import ReactFlow, {
   Background,
@@ -9,11 +9,26 @@ import ReactFlow, {
   addEdge,
   Connection,
   Edge,
-  NodeTypes
+  NodeTypes,
+  Node
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import EnhancedTranslationNode from '../nodes/EnhancedTranslationNode';
+import { styled } from '@mui/material/styles';
+import EnhancedTranslationNode from '../translation/EnhancedTranslationNode';
 import WorkflowToolbar from './WorkflowToolbar';
+import { TranslationNodeData } from '../translation/types';
+import { BaseNodeData } from './types';
+
+// Types
+type NodeData = BaseNodeData | TranslationNodeData;
+type WorkflowNode = Node<NodeData>;
+
+interface WorkflowCanvasProps {
+  initialNodes: WorkflowNode[];
+  initialEdges: Edge[];
+  onSave: () => Promise<void>;
+  readOnly: boolean;
+}
 
 // Define custom node types
 const nodeTypes: NodeTypes = {
@@ -21,10 +36,15 @@ const nodeTypes: NodeTypes = {
 };
 
 // Initial nodes and edges
-const initialNodes = [];
-const initialEdges = [];
+const defaultNodes: WorkflowNode[] = [];
+const defaultEdges: Edge[] = [];
 
-const WorkflowCanvas: React.FC = () => {
+const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
+  initialNodes = defaultNodes,
+  initialEdges = defaultEdges,
+  onSave,
+  readOnly
+}) => {
   // State for nodes and edges
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);

@@ -195,10 +195,10 @@ class FileService {
   }
 
   /**
-   * Get a file for download
+   * Get file content and metadata
    * 
    * @param {string} filePath - Relative path to the file
-   * @returns {Promise<Object>} - File object
+   * @returns {Promise<Object>} - File object with content and metadata
    */
   async getFile(filePath) {
     try {
@@ -215,15 +215,87 @@ class FileService {
         throw new Error('Cannot download a directory');
       }
       
-      return {
+      // Read file content
+      const content = await fs.readFile(absolutePath, 'utf8');
+      
+      // Get file metadata
+      const metadata = {
         name: path.basename(absolutePath),
-        path: absolutePath,
+        path: filePath,
         size: stats.size,
-        type: mime.lookup(absolutePath) || 'application/octet-stream'
+        mimeType: mime.lookup(absolutePath) || 'application/octet-stream',
+        createdAt: stats.birthtime,
+        modifiedAt: stats.mtime
+      };
+      
+      return {
+        content,
+        metadata
       };
     } catch (error) {
       console.error('Error getting file:', error);
       throw new Error(`Failed to get file: ${error.message}`);
+    }
+  }
+
+  /**
+   * Create a folder if it doesn't exist
+   * 
+   * @param {string} folderPath - Relative path to the folder
+   * @returns {Promise<void>}
+   */
+  async createFolderIfNotExists(folderPath) {
+    try {
+      const absolutePath = this._getAbsolutePath(folderPath);
+      await fs.ensureDir(absolutePath);
+    } catch (error) {
+      console.error('Error creating folder:', error);
+      throw new Error(`Failed to create folder: ${error.message}`);
+    }
+  }
+
+  /**
+   * Save a file with content
+   * 
+   * @param {string} filePath - Relative path to save the file
+   * @param {string} content - File content
+   * @param {string} mimeType - MIME type of the file
+   * @param {string} userId - ID of the user saving the file
+   * @returns {Promise<Object>} - Saved file object
+   */
+  async saveFile(filePath, content, mimeType, userId) {
+    try {
+      console.log('Saving file:', { filePath, mimeType, userId });
+      const absolutePath = this._getAbsolutePath(filePath);
+      
+      // Ensure the directory exists
+      await fs.ensureDir(path.dirname(absolutePath));
+      
+      // Save the file
+      await fs.writeFile(absolutePath, content);
+      
+      // Get file stats
+      const stats = await fs.stat(absolutePath);
+      
+      // Create metadata
+      const metadata = {
+        id: path.basename(absolutePath),
+        name: path.basename(absolutePath),
+        path: filePath,
+        size: stats.size,
+        mimeType: mimeType || 'text/plain',
+        createdAt: stats.birthtime,
+        modifiedAt: stats.mtime
+      };
+      
+      console.log('File saved successfully:', metadata);
+      return {
+        content,
+        metadata
+      };
+    } catch (error) {
+      console.error('Error saving file:', error);
+      throw new Error(`Failed to save file: ${error.message}`);
     }
   }
 
@@ -528,4 +600,6 @@ class FileService {
   }
 }
 
-module.exports = new FileService();
+// Create and export a single instance
+const fileServiceInstance = new FileService();
+module.exports = fileServiceInstance;

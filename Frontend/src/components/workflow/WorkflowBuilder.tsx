@@ -33,6 +33,17 @@ import { NODE_TYPES, getNodeDefaults } from '../nodes/NodeRegistry';
 import WorkflowCanvas from './WorkflowCanvas';
 import { createWorkflow, updateWorkflow, getWorkflow, listWorkflows } from '../../services/api';
 import { Process } from '../../types/process';
+import { TranslationNodeData } from '../translation/types';
+import { BaseNodeData, WorkflowNode } from './types';
+import TranslationNodeForm from '../translation/TranslationNodeForm';
+import { TranslationNodeFormData } from '../translation/TranslationNodeForm';
+
+// Props interface for WorkflowBuilder
+interface WorkflowBuilderProps {
+  onNodesChange?: (nodes: WorkflowNode[]) => void;
+  onEdgesChange?: (edges: Edge[]) => void;
+  workflowId?: string;
+}
 
 // API response types
 interface ApiWorkflow {
@@ -52,72 +63,24 @@ interface ApiWorkflowList {
   updatedAt: string;
 }
 
-// Props interface for WorkflowBuilder
-interface WorkflowBuilderProps {
-  onNodesChange?: (nodes: Node[]) => void;
-  onEdgesChange?: (edges: Edge[]) => void;
-  workflowId?: string;
-}
-
-const ToolbarContainer = styled(Paper)`
-  padding: 16px;
-  margin-bottom: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-`;
-
-const NodeButtonsContainer = styled(Box)`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-`;
-
-const NodeButton = styled(Button)`
-  display: flex;
-  flex-direction: column;
-  padding: 12px;
-  min-width: 120px;
-  height: 90px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    transform: translateY(-2px);
-  }
-`;
-
-const WorkflowContainer = styled(Box)`
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: 16px;
-`;
-
 // Workflow data interface
 interface WorkflowData {
   id: string;
   name: string;
   description: string;
-  nodes: Node[];
+  nodes: WorkflowNode[];
   edges: Edge[];
   createdAt?: string;
   updatedAt?: string;
 }
 
-interface NodeData {
-  label: string;
-  description: string;
-  icon: string;
-  capabilities: string[];
-}
-
-type WorkflowNode = Node<NodeData> & {
+interface WorkflowTemplate {
   id: string;
-  type: string;
-  position: XYPosition;
-  data: NodeData;
-};
+  name: string;
+  description: string;
+  nodes: WorkflowNode[];
+  edges: Edge[];
+}
 
 // Conversion functions
 const convertApiToWorkflowData = (apiWorkflow: ApiWorkflow): WorkflowData => {
@@ -131,7 +94,7 @@ const convertApiToWorkflowData = (apiWorkflow: ApiWorkflow): WorkflowData => {
       description: process.metadata.description,
       icon: '',
       capabilities: []
-    }
+    } as BaseNodeData
   }));
 
   // Create edges based on process dependencies
@@ -200,6 +163,8 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onNodesChange, onEdge
   const autoSaveTimer = useRef<NodeJS.Timeout | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
 
   // Load workflow if workflowId is provided
   useEffect(() => {
@@ -268,15 +233,18 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onNodesChange, onEdge
       const response = await getWorkflow(id);
       if (response.success && response.data) {
         const workflowData = convertApiToWorkflowData(response.data);
-        const workflowNodes: WorkflowNode[] = workflowData.nodes.map(node => ({
-          ...node,
-          type: node.type || 'default',
-          data: {
-            ...node.data,
-            icon: node.data.icon || '',
-            capabilities: node.data.capabilities || []
-          }
-        }));
+        const workflowNodes: WorkflowNode[] = workflowData.nodes.map(node => {
+          const baseData = node.data as BaseNodeData;
+          return {
+            ...node,
+            type: node.type || 'default',
+            data: {
+              ...baseData,
+              icon: baseData.icon || '',
+              capabilities: baseData.capabilities || []
+            } as BaseNodeData
+          };
+        });
         setNodes(workflowNodes);
         setEdges(workflowData.edges);
         setWorkflowName(workflowData.name);
@@ -330,7 +298,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onNodesChange, onEdge
         description: '',
         icon: '',
         capabilities: []
-      }
+      } as BaseNodeData
     };
     setNodes(prevNodes => [...prevNodes, newNode]);
   };
@@ -350,7 +318,7 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onNodesChange, onEdge
         description: '',
         icon: '',
         capabilities: []
-      }
+      } as BaseNodeData
     };
 
     setNodes(prevNodes => [...prevNodes, newNode]);
@@ -654,44 +622,88 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onNodesChange, onEdge
       </Box>
 
       {/* Add Node Dialog */}
-      <Dialog open={isDialogOpen} onClose={() => setIsDialogOpen(false)}>
+      <Dialog 
+        open={isDialogOpen} 
+        onClose={() => setIsDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+      >
         <DialogTitle>Add New Node</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            id="name"
-            label="Node Name"
-            type="text"
-            fullWidth
-            variant="outlined"
-            value={nodeName}
-            onChange={(e) => setNodeName(e.target.value)}
-            sx={{ mb: 2 }}
-          />
-          
-          {currentNodeType === NODE_TYPES.communicationNode && (
-            <FormControl fullWidth margin="dense">
-              <InputLabel id="comm-mode-label">Communication Mode</InputLabel>
-              <Select
-                labelId="comm-mode-label"
-                id="comm-mode"
-                value={communicationMode}
-                label="Communication Mode"
-                onChange={(e) => setCommunicationMode(e.target.value as 'send' | 'write')}
-              >
-                <MenuItem value="send">Send</MenuItem>
-                <MenuItem value="write">Write</MenuItem>
-              </Select>
-            </FormControl>
+          {currentNodeType === NODE_TYPES.translationNode ? (
+            <TranslationNodeForm
+              onSubmit={(formData: TranslationNodeFormData) => {
+                const newNode: WorkflowNode = {
+                  id: `node-${nodeIdCounter.current++}`,
+                  type: NODE_TYPES.translationNode,
+                  position: { x: 100, y: 100 },
+                  data: {
+                    label: formData.nodeName,
+                    description: 'Transforms documents using Claude AI',
+                    sourceDoc1: formData.inputDocumentUrls[0]?.url ? {
+                      name: formData.inputDocumentUrls[0].url.split('/').pop() || 'Unknown file',
+                      path: formData.inputDocumentUrls[0].url
+                    } : null,
+                    sourceDoc2: formData.inputDocumentUrls[1]?.url ? {
+                      name: formData.inputDocumentUrls[1].url.split('/').pop() || 'Unknown file',
+                      path: formData.inputDocumentUrls[1].url
+                    } : null,
+                    templateDoc: formData.exampleFormatUrl ? {
+                      name: formData.exampleFormatUrl.split('/').pop() || 'Unknown file',
+                      path: formData.exampleFormatUrl
+                    } : null,
+                    instruction: formData.instructions,
+                    model: formData.model,
+                    status: 'idle' as const,
+                    outputDoc: null
+                  }
+                };
+                setNodes(prevNodes => [...prevNodes, newNode]);
+                setIsDialogOpen(false);
+              }}
+              onCancel={() => setIsDialogOpen(false)}
+            />
+          ) : (
+            <>
+              <TextField
+                autoFocus
+                margin="dense"
+                id="name"
+                label="Node Name"
+                type="text"
+                fullWidth
+                variant="outlined"
+                value={nodeName}
+                onChange={(e) => setNodeName(e.target.value)}
+                sx={{ mb: 2 }}
+              />
+              
+              {currentNodeType === NODE_TYPES.communicationNode && (
+                <FormControl fullWidth margin="dense">
+                  <InputLabel id="comm-mode-label">Communication Mode</InputLabel>
+                  <Select
+                    labelId="comm-mode-label"
+                    id="comm-mode"
+                    value={communicationMode}
+                    label="Communication Mode"
+                    onChange={(e) => setCommunicationMode(e.target.value as 'send' | 'write')}
+                  >
+                    <MenuItem value="send">Send</MenuItem>
+                    <MenuItem value="write">Write</MenuItem>
+                  </Select>
+                </FormControl>
+              )}
+            </>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleCreateNode} variant="contained" color="primary">
-            Create
-          </Button>
-        </DialogActions>
+        {currentNodeType !== NODE_TYPES.translationNode && (
+          <DialogActions>
+            <Button onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateNode} variant="contained" color="primary">
+              Create
+            </Button>
+          </DialogActions>
+        )}
       </Dialog>
       
       {/* Save Workflow Dialog */}

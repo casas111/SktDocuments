@@ -9,16 +9,18 @@ import {
   AlertColor,
   Divider
 } from '@mui/material';
-import styled from '@emotion/styled';
+import { styled } from '@mui/material/styles';
+import { Theme } from '@mui/material/styles';
 import axios from 'axios';
 import { API_BASE_URL } from '../../config/api';
-import EnhancedTranslationNode from '../nodes/EnhancedTranslationNode';
+import EnhancedTranslationNode from './EnhancedTranslationNode';
 import CustomInstructionEditor from '../common/CustomInstructionEditor';
 import DocumentSelector from '../documents/DocumentSelector';
 import TranslationsOutput from '../documents/TranslationsOutput';
 import { UnifiedDocumentService } from '../../services/unifiedDocumentService';
 import { Node } from 'reactflow';
 import { Position } from 'reactflow';
+import { TranslationNodeData } from './types';
 
 // Styled components
 const TranslationServiceContainer = styled(Box)`
@@ -26,6 +28,12 @@ const TranslationServiceContainer = styled(Box)`
   max-width: 1200px;
   margin: 0 auto;
 `;
+
+const StyledBox = styled(Box)(({ theme }: { theme: Theme }) => ({
+  padding: theme.spacing(2),
+  backgroundColor: theme.palette.background.paper,
+  borderRadius: theme.shape.borderRadius,
+}));
 
 // Available Claude models
 const availableModels = [
@@ -59,16 +67,6 @@ interface NotificationState {
   severity: AlertColor;
 }
 
-interface EnhancedTranslationNodeData {
-  label: string;
-  description: string;
-  sourceDoc1: FileItem | null;
-  sourceDoc2: FileItem | null;
-  templateDoc: FileItem | null;
-  instruction: string;
-  model: string;
-}
-
 const TranslationService: React.FC = () => {
   // Document state
   const [sourceDoc1, setSourceDoc1] = useState<FileItem | null>(null);
@@ -91,14 +89,16 @@ const TranslationService: React.FC = () => {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   
   // Node data for preview
-  const [nodeData, setNodeData] = useState<EnhancedTranslationNodeData>({
+  const [nodeData, setNodeData] = useState<TranslationNodeData>({
     label: 'Document Translation',
     description: 'Transforms documents using Claude AI',
     sourceDoc1: null,
     sourceDoc2: null,
     templateDoc: null,
     instruction: '',
-    model: 'claude-3-haiku-20240307'
+    model: 'claude-3-haiku-20240307',
+    status: 'idle' as const,
+    outputDoc: null
   });
   
   // Update node data when inputs change
@@ -110,7 +110,9 @@ const TranslationService: React.FC = () => {
       sourceDoc2: sourceDoc2,
       templateDoc: templateDoc,
       instruction: instruction.substring(0, 50) + (instruction.length > 50 ? '...' : ''),
-      model
+      model,
+      status: 'idle' as const,
+      outputDoc: null
     });
   }, [sourceDoc1, sourceDoc2, templateDoc, instruction, model]);
   
@@ -393,12 +395,6 @@ const TranslationService: React.FC = () => {
               dragging={false}
               targetPosition={Position.Left}
               sourcePosition={Position.Right}
-              zIndex={1}
-              type="translation"
-              isConnectable={true}
-              xPos={0}
-              yPos={0}
-              dragHandle=".drag-handle"
             />
           </Box>
         </Box>

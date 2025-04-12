@@ -60,21 +60,17 @@ const TranslationManager: React.FC<TranslationManagerProps> = ({
     try {
       // Process translation
       const result = await translationService.processTranslation({
-        nodeName: formData.nodeName,
-        inputDocumentUrls: formData.inputDocumentUrls.map(doc => doc.url),
-        exampleFormatUrl: formData.exampleFormatUrl,
-        instructions: formData.instructions,
+        sourceDocIds: formData.inputDocumentUrls.map(doc => doc.url),
+        templateDocId: formData.exampleFormatUrl,
+        instruction: formData.instructions,
         model: formData.model
       });
       
-      setResult(result);
-      
       if (result.success) {
-        // Show success notification
-        setNotification({
-          open: true,
-          message: 'Translation processed successfully!',
-          severity: 'success'
+        setResult({
+          success: true,
+          status: 'success',
+          data: result.data
         });
         
         // Create node data for workflow
@@ -97,9 +93,9 @@ const TranslationManager: React.FC<TranslationManagerProps> = ({
             instruction: formData.instructions,
             model: formData.model,
             status: 'success',
-            outputDoc: result.outputDocumentUrl ? {
-              name: result.outputDocumentName || 'Translated Document',
-              path: result.outputDocumentUrl
+            outputDoc: result.data?.translatedDocument ? {
+              name: result.data.translatedDocument.name,
+              path: result.data.translatedDocument.path
             } : null
           };
           
@@ -109,11 +105,10 @@ const TranslationManager: React.FC<TranslationManagerProps> = ({
         // Hide form
         setShowForm(false);
       } else {
-        // Show error notification
-        setNotification({
-          open: true,
-          message: `Error: ${result.error || 'Failed to process translation'}`,
-          severity: 'error'
+        setResult({
+          success: false,
+          status: 'error',
+          error: result.error || 'Failed to process translation'
         });
       }
     } catch (error) {
@@ -188,7 +183,7 @@ const TranslationManager: React.FC<TranslationManagerProps> = ({
           onSubmit={handleFormSubmit}
           onCancel={handleFormCancel}
         />
-      ) : result?.success ? (
+      ) : result?.status === 'success' ? (
         <ResultContainer elevation={2}>
           <Typography variant="h5" gutterBottom color="primary">
             Translation Completed Successfully
@@ -201,17 +196,19 @@ const TranslationManager: React.FC<TranslationManagerProps> = ({
             <Typography variant="body1" component="div">
               <Box component="span" sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
                 <Box component="span" sx={{ mr: 1 }}>
-                  {result.outputDocumentName || 'Translated Document'}
+                  {result.data?.translatedDocument?.name || 'Translated Document'}
                 </Box>
-                <Button
-                  variant="outlined"
-                  size="small"
-                  href={result.outputDocumentUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  View Document
-                </Button>
+                {result.data?.translatedDocument?.path && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    href={`http://localhost:3000/file/${result.data.translatedDocument.path}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View Document
+                  </Button>
+                )}
               </Box>
             </Typography>
           </Box>

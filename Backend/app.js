@@ -12,6 +12,7 @@ const fileRoutes = require('./routes/fileRoutes');
 const fileMetadataRoutes = require('./routes/fileMetadataRoutes');
 const directFileRoutes = require('./routes/directFileRoutes');
 const tagRoutes = require('./routes/tagRoutes');
+const translationRoutes = require('./routes/translationRoutes');
 
 // Create Express app
 const app = express();
@@ -38,6 +39,7 @@ app.use('/api/claude', claudeRoutes);
 app.use('/api/files', fileRoutes);
 app.use('/api/files', fileMetadataRoutes);
 app.use('/api/tags', tagRoutes);
+app.use('/api/translation', translationRoutes);
 
 // Root route
 app.get('/', (req, res) => {

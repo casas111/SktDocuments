@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_ENDPOINTS } from '../../config/api';
+import { API_ENDPOINTS } from '../config/api';
 
 // Types
 export interface FileItem {
@@ -14,18 +14,41 @@ export interface FileItem {
 }
 
 export interface TranslationRequest {
-  nodeName: string;
-  inputDocumentUrls: string[];
-  exampleFormatUrl: string;
-  instructions: string;
-  model: string;
+  sourceDocIds: string[];
+  templateDocId: string;
+  instruction: string;
+  model?: string;
 }
 
 export interface TranslationResult {
   success: boolean;
-  outputDocumentUrl?: string;
-  outputDocumentName?: string;
+  message?: string;
   error?: string;
+  status?: 'success' | 'error';
+  data?: {
+    translatedDocument: {
+      id: string;
+      name: string;
+      path: string;
+      size: number;
+      mimeType: string;
+      createdAt: string;
+      modifiedAt: string;
+    };
+    model: string;
+  };
+}
+
+export interface TranslationNodeFormData {
+  nodeName: string;
+  inputDocumentUrls: { id: string; url: string }[];
+  exampleFormatUrl: string;
+  instructions: string;
+  model: string;
+  outputDoc?: {
+    name: string;
+    path: string;
+  } | null;
 }
 
 class TranslationService {
@@ -37,49 +60,48 @@ class TranslationService {
    */
   async processTranslation(request: TranslationRequest): Promise<TranslationResult> {
     try {
-      // Extract document IDs from URLs
-      const inputDocIds = request.inputDocumentUrls.map(url => this.extractDocumentIdFromUrl(url));
-      const templateDocId = this.extractDocumentIdFromUrl(request.exampleFormatUrl);
+      // Extract filenames from URLs
+      const sourceDocIds = request.sourceDocIds.map(url => this.extractDocumentIdFromUrl(url));
+      const templateDocId = this.extractDocumentIdFromUrl(request.templateDocId);
       
-      // Validate extracted IDs
-      if (inputDocIds.some(id => !id) || !templateDocId) {
-        return {
-          success: false,
-          error: 'Invalid document URLs provided'
-        };
-      }
-      
-      // Create a unique node ID if not provided
-      const nodeId = `translation-${Date.now()}`;
-      
-      // Make API request to process translation
-      const response = await axios.post(`${API_ENDPOINTS.TRANSLATION}/process`, {
-        nodeId,
-        nodeName: request.nodeName,
-        sourceDoc1Id: inputDocIds[0],
-        sourceDoc2Id: inputDocIds.length > 1 ? inputDocIds[1] : inputDocIds[0], // Use first doc as fallback
-        templateDocId,
-        instruction: request.instructions,
-        model: request.model
+      console.log('Extracted filenames:', {
+        sourceDocIds,
+        templateDocId
       });
-      
-      if (response.data.success) {
-        return {
-          success: true,
-          outputDocumentUrl: this.constructDocumentUrl(response.data.data.translatedDocument?.path),
-          outputDocumentName: response.data.data.translatedDocument?.name
-        };
-      } else {
+
+      // Validate required parameters
+      if (!sourceDocIds.length || !templateDocId || !request.instruction) {
+        const missingParams = [];
+        if (!sourceDocIds.length) missingParams.push('sourceDocIds');
+        if (!templateDocId) missingParams.push('templateDocId');
+        if (!request.instruction) missingParams.push('instruction');
+        
+        console.log('Missing required parameters:', missingParams);
         return {
           success: false,
-          error: response.data.error || 'Failed to process translation'
+          error: `Missing required parameters: ${missingParams.join(', ')}`
         };
       }
+
+      const response = await axios.post(`${API_ENDPOINTS.TRANSLATION}/process`, {
+        sourceDocIds,
+        templateDocId,
+        instruction: request.instruction,
+        model: request.model || 'claude-3-haiku-20240307'
+      });
+
+      return response.data;
     } catch (error) {
-      console.error('Error processing translation:', error);
+      console.error('Translation error:', error);
+      if (axios.isAxiosError(error)) {
+        return {
+          success: false,
+          error: error.response?.data?.error || error.message
+        };
+      }
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
+        error: 'An unexpected error occurred'
       };
     }
   }
@@ -95,33 +117,16 @@ class TranslationService {
     try {
       const urlObj = new URL(url);
       const pathParts = urlObj.pathname.split('/');
-      return pathParts[pathParts.length - 1] || null;
+      const filename = pathParts[pathParts.length - 1];
+      
+      // Log the extracted filename for debugging
+      console.log('Extracted filename from URL:', filename);
+      
+      return filename || null;
     } catch (error) {
       console.error('Invalid URL format:', url);
       return null;
     }
-  }
-  
-  /**
-   * Construct document URL from path
-   * 
-   * @param path Document path
-   * @returns Full document URL
-   */
-  private constructDocumentUrl(path?: string): string {
-    if (!path) return '';
-    
-    // If path is already a full URL, return it
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return path;
-    }
-    
-    // Extract filename from path
-    const pathParts = path.split('/');
-    const filename = pathParts[pathParts.length - 1];
-    
-    // Construct URL
-    return `http://localhost:3000/file/${filename}`;
   }
   
   /**

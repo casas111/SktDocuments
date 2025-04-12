@@ -20,36 +20,71 @@ class TranslationController {
   async translateDocuments(req, res) {
     try {
       const { 
-        sourceDoc1Id, 
-        sourceDoc2Id, 
+        sourceDocIds, 
         templateDocId, 
         instruction,
         model = 'claude-3-haiku-20240307',
         maxTokens = 4000
       } = req.body;
       
+      console.log('Received request with:', {
+        sourceDocIds,
+        templateDocId,
+        instruction: instruction ? 'present' : 'missing',
+        model
+      });
+      
       // Validate required parameters
-      if (!sourceDoc1Id || !sourceDoc2Id || !templateDocId || !instruction) {
+      if (!sourceDocIds || !Array.isArray(sourceDocIds) || sourceDocIds.length === 0 || !templateDocId || !instruction) {
+        const missingParams = [];
+        if (!sourceDocIds || !Array.isArray(sourceDocIds) || sourceDocIds.length === 0) missingParams.push('sourceDocIds');
+        if (!templateDocId) missingParams.push('templateDocId');
+        if (!instruction) missingParams.push('instruction');
+        
+        console.log('Missing required parameters:', missingParams);
         return res.status(400).json({
           success: false,
-          error: 'Missing required parameters: sourceDoc1Id, sourceDoc2Id, templateDocId, and instruction are required'
+          error: `Missing required parameters: ${missingParams.join(', ')} are required`
         });
       }
       
       // Get source documents content
-      const sourceDoc1 = await fileService.getFileById(sourceDoc1Id);
-      const sourceDoc2 = await fileService.getFileById(sourceDoc2Id);
-      const templateDoc = await fileService.getFileById(templateDocId);
+      console.log('Fetching source documents...');
+      const sourceDocs = await Promise.all(
+        sourceDocIds.map(async (docId) => {
+          try {
+            return await fileService.getFile(docId);
+          } catch (error) {
+            console.error(`Error fetching document ${docId}:`, error);
+            return null;
+          }
+        })
+      );
       
-      if (!sourceDoc1 || !sourceDoc2 || !templateDoc) {
+      const templateDoc = await fileService.getFile(templateDocId);
+      
+      console.log('Documents found:', {
+        sourceDocs: sourceDocs.map(doc => !!doc),
+        templateDoc: !!templateDoc
+      });
+      
+      // Check if any required documents are missing
+      const missingDocs = [];
+      if (!templateDoc) missingDocs.push('templateDoc');
+      sourceDocs.forEach((doc, index) => {
+        if (!doc) missingDocs.push(`sourceDoc${index + 1}`);
+      });
+      
+      if (missingDocs.length > 0) {
+        console.log('Required documents not found:', missingDocs);
         return res.status(404).json({
           success: false,
-          error: 'One or more documents not found'
+          error: `Required documents not found: ${missingDocs.join(', ')}`
         });
       }
       
       // Validate template is PDF
-      if (templateDoc.mimeType !== 'application/pdf') {
+      if (templateDoc.metadata.mimeType !== 'application/pdf') {
         return res.status(400).json({
           success: false,
           error: 'Template document must be a PDF file'
@@ -69,14 +104,15 @@ class TranslationController {
       }
       
       // Prepare prompt for Claude
+      const sourceDocsContent = sourceDocs.map((doc, index) => `
+DOCUMENT ${index + 1}:
+${doc.content}
+`).join('\n');
+
       const prompt = `
-I need you to transform two documents into a new document that follows the format of a template.
+I need you to transform ${sourceDocs.length} document${sourceDocs.length > 1 ? 's' : ''} into a new document that follows the format of a template.
 
-DOCUMENT 1:
-${sourceDoc1.content}
-
-DOCUMENT 2:
-${sourceDoc2.content}
+${sourceDocsContent}
 
 TEMPLATE STRUCTURE (PDF):
 The template is a PDF document with the following structure and sections:
@@ -85,7 +121,7 @@ ${templateDoc.metadata ? templateDoc.metadata.description || 'PDF Template' : 'P
 INSTRUCTION:
 ${instruction}
 
-Please provide the transformed content that follows the template format while incorporating relevant information from both source documents.
+Please provide the transformed content that follows the template format while incorporating relevant information from the source document${sourceDocs.length > 1 ? 's' : ''}.
 `;
       
       // Call Claude API
@@ -109,6 +145,9 @@ Please provide the transformed content that follows the template format while in
       
       // Save the translated content
       try {
+        console.log('FileService methods:', Object.keys(fileService));
+        console.log('Saving translated document to:', outputPath);
+        
         const savedFile = await fileService.saveFile(
           outputPath,
           claudeResponse.message,
@@ -120,7 +159,7 @@ Please provide the transformed content that follows the template format while in
           success: true,
           message: 'Translation completed successfully',
           data: {
-            translatedDocument: savedFile,
+            translatedDocument: savedFile.metadata,
             model: model
           }
         });

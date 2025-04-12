@@ -29,6 +29,10 @@ import styled from '@emotion/styled';
 import CustomInstructionEditor from '../common/CustomInstructionEditor';
 import { Position } from 'reactflow';
 import EnhancedTranslationNode from '../nodes/EnhancedTranslationNode';
+import TranslationService from '../../services/TranslationService';
+
+// Create an instance of TranslationService
+const translationService = new TranslationService();
 
 // Styled components
 const FormContainer = styled(Paper)`
@@ -66,6 +70,10 @@ export interface TranslationNodeFormData {
   exampleFormatUrl: string;
   instructions: string;
   model: string;
+  outputDoc?: {
+    name: string;
+    path: string;
+  } | null;
 }
 
 const TranslationNodeForm: React.FC<TranslationNodeFormProps> = ({
@@ -162,15 +170,47 @@ const TranslationNodeForm: React.FC<TranslationNodeFormProps> = ({
   };
   
   // Handle form submission
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (validateForm()) {
-      onSubmit({
-        nodeName,
-        inputDocumentUrls,
-        exampleFormatUrl,
-        instructions,
-        model
-      });
+      try {
+        // Create translation request
+        const translationRequest = {
+          nodeName,
+          inputDocumentUrls,
+          exampleFormatUrl,
+          instruction: instructions,
+          model
+        };
+
+        // Call translation service
+        const result = await translationService.processTranslation({
+          sourceDocIds: inputDocumentUrls.map(doc => doc.url),
+          templateDocId: exampleFormatUrl,
+          instruction: instructions,
+          model: model
+        });
+        
+        if (result.success) {
+          // Call the parent onSubmit with the result
+          onSubmit({
+            nodeName,
+            inputDocumentUrls,
+            exampleFormatUrl,
+            instructions,
+            model,
+            outputDoc: result.data?.translatedDocument ? {
+              name: result.data.translatedDocument.name,
+              path: result.data.translatedDocument.path
+            } : null
+          });
+        } else {
+          // Show error message
+          setErrors({ submit: result.error || 'Failed to process translation' });
+        }
+      } catch (error) {
+        console.error('Error processing translation:', error);
+        setErrors({ submit: error instanceof Error ? error.message : 'Unknown error occurred' });
+      }
     }
   };
   
@@ -191,28 +231,26 @@ const TranslationNodeForm: React.FC<TranslationNodeFormProps> = ({
   };
   
   // Create preview node data
-  const createPreviewNodeData = () => {
-    return {
-      label: nodeName,
-      description: 'Transforms documents using Claude AI',
-      sourceDoc1: inputDocumentUrls[0]?.url ? {
-        name: getFilenameFromUrl(inputDocumentUrls[0].url),
-        path: inputDocumentUrls[0].url
-      } : null,
-      sourceDoc2: inputDocumentUrls[1]?.url ? {
-        name: getFilenameFromUrl(inputDocumentUrls[1].url),
-        path: inputDocumentUrls[1].url
-      } : null,
-      templateDoc: exampleFormatUrl ? {
-        name: getFilenameFromUrl(exampleFormatUrl),
-        path: exampleFormatUrl
-      } : null,
-      instruction: instructions,
-      model: model,
-      status: 'idle',
-      outputDoc: null
-    };
-  };
+  const createPreviewNodeData = () => ({
+    label: 'Document Translation',
+    description: 'Transforms documents using Claude AI',
+    sourceDoc1: inputDocumentUrls[0]?.url ? {
+      name: getFilenameFromUrl(inputDocumentUrls[0].url),
+      path: inputDocumentUrls[0].url
+    } : null,
+    sourceDoc2: inputDocumentUrls[1]?.url ? {
+      name: getFilenameFromUrl(inputDocumentUrls[1].url),
+      path: inputDocumentUrls[1].url
+    } : null,
+    templateDoc: exampleFormatUrl ? {
+      name: getFilenameFromUrl(exampleFormatUrl),
+      path: exampleFormatUrl
+    } : null,
+    instruction: instructions,
+    model: model,
+    status: 'idle' as const,
+    outputDoc: null
+  });
   
   return (
     <FormContainer elevation={3}>
