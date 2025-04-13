@@ -25,7 +25,7 @@
  * │   └── workflowRoutes.js   - Workflow API endpoints
  * ├── services/               - Business logic
  * │   ├── documentService.js  - Document storage and retrieval
- * │   ├── translationService.js - Translation node implementation
+ * │   ├── transformationService.js - Transformation node implementation
  * │   └── aiService.js        - Integration with AI models
  * ├── storage/                - Document storage directory
  * │   ├── uploads/            - Uploaded documents
@@ -47,7 +47,7 @@
  * - DELETE /api/documents/:id - Delete a document
  * 
  * Workflow API:
- * - POST /api/workflow/translate - Process translation node
+ * - POST /api/workflow/transform - Process transformation node
  * - POST /api/workflow/communicate - Process communication node (stub)
  * - POST /api/workflow/compare - Process comparison node (stub)
  * - POST /api/workflow/simetrik - Process simetrik node (stub)
@@ -63,9 +63,9 @@
  * - Each document will have a unique ID and metadata
  */
 
-// Translation Node Implementation
+// Transformation Node Implementation
 /**
- * The translation node will:
+ * The transformation node will:
  * 1. Accept input documents
  * 2. Accept an example document for output format
  * 3. Call an AI service (ChatGPT or similar) with the documents as context

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, Button, Typography, Divider } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import TranslationNodeCreator from './TranslationNodeCreator';
+import TransformationNodeCreator from './TransformationNodeCreator';
 
 interface WorkflowToolbarProps {
   onAddNode?: (nodeType: string) => void;
@@ -10,14 +10,14 @@ interface WorkflowToolbarProps {
 const WorkflowToolbar: React.FC<WorkflowToolbarProps> = ({
   onAddNode
 }) => {
-  const [isTranslationCreatorOpen, setIsTranslationCreatorOpen] = useState(false);
+  const [isTransformationCreatorOpen, setIsTransformationCreatorOpen] = useState(false);
 
-  const handleOpenTranslationCreator = () => {
-    setIsTranslationCreatorOpen(true);
+  const handleOpenTransformationCreator = () => {
+    setIsTransformationCreatorOpen(true);
   };
 
-  const handleCloseTranslationCreator = () => {
-    setIsTranslationCreatorOpen(false);
+  const handleCloseTransformationCreator = () => {
+    setIsTransformationCreatorOpen(false);
   };
 
   return (
@@ -30,16 +30,16 @@ const WorkflowToolbar: React.FC<WorkflowToolbarProps> = ({
         <Button
           variant="outlined"
           startIcon={<AddIcon />}
-          onClick={handleOpenTranslationCreator}
+          onClick={handleOpenTransformationCreator}
         >
-          Add Translation Node
+          Add Transformation Node
         </Button>
       </Box>
 
-      {/* Translation Node Creator Dialog */}
-      <TranslationNodeCreator
-        isOpen={isTranslationCreatorOpen}
-        onClose={handleCloseTranslationCreator}
+      {/* Transformation Node Creator Dialog */}
+      <TransformationNodeCreator
+        isOpen={isTransformationCreatorOpen}
+        onClose={handleCloseTransformationCreator}
       />
     </Box>
   );

@@ -3,11 +3,11 @@ const documentService = require('../services/documentService');
 const logger = require('../utils/logger');
 
 /**
- * Process translation node
+ * Process transformation node
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
-const processTranslation = async (req, res) => {
+const processTransformation = async (req, res) => {
   try {
     const { documentId, exampleDocumentId } = req.body;
     
@@ -35,13 +35,13 @@ const processTranslation = async (req, res) => {
       });
     }
     
-    // Start translation process
-    const process = await workflowService.executeTranslation(documentId, exampleDocumentId);
+    // Start transformation process
+    const process = await workflowService.executeTransformation(documentId, exampleDocumentId);
     
     // Return process information
     res.status(200).json({
       success: true,
-      message: 'Translation process started',
+      message: 'Transformation process started',
       process: {
         id: process.id,
         type: process.type,
@@ -51,10 +51,10 @@ const processTranslation = async (req, res) => {
       }
     });
   } catch (error) {
-    logger.error('Error processing translation:', error);
+    logger.error('Error processing transformation:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to process translation',
+      message: 'Failed to process transformation',
       error: error.message
     });
   }
@@ -302,7 +302,7 @@ const deleteWorkflow = async (req, res) => {
 };
 
 module.exports = {
-  processTranslation,
+  processTransformation,
   processCommunication,
   processComparison,
   processSimetrik,

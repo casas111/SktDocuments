@@ -1,6 +1,6 @@
 /**
- * Test script for the translate node functionality
- * This script tests all components of the translate node implementation
+ * Test script for the transform node functionality
+ * This script tests all components of the transform node implementation
  */
 
 // Import required modules
@@ -15,7 +15,7 @@ const mkdir = promisify(fs.mkdir);
 // Configuration
 const API_BASE_URL = 'http://localhost:3000/api';
 const TEST_FILES_DIR = path.join(__dirname, 'test-files');
-const TRANSLATIONS_DIR = path.join(__dirname, 'translations');
+const TRANSFORMATIONS_DIR = path.join(__dirname, 'transformations');
 
 // Ensure test directories exist
 async function setupTestEnvironment() {
@@ -27,9 +27,9 @@ async function setupTestEnvironment() {
       await mkdir(TEST_FILES_DIR);
     }
     
-    // Create translations directory if it doesn't exist
-    if (!fs.existsSync(TRANSLATIONS_DIR)) {
-      await mkdir(TRANSLATIONS_DIR);
+    // Create transformations directory if it doesn't exist
+    if (!fs.existsSync(TRANSFORMATIONS_DIR)) {
+      await mkdir(TRANSFORMATIONS_DIR);
     }
     
     // Create test files
@@ -42,7 +42,7 @@ async function setupTestEnvironment() {
   }
 }
 
-// Create test files for translation
+// Create test files for transformation
 async function createTestFiles() {
   console.log('Creating test files...');
   
@@ -228,13 +228,13 @@ async function testFileUpload() {
   }
 }
 
-// Test translation functionality
-async function testTranslation(fileIds) {
-  console.log('\nTesting translation functionality...');
+// Test transformation functionality
+async function testTransformation(fileIds) {
+  console.log('\nTesting transformation functionality...');
   
   try {
-    // Create translation request
-    const translationRequest = {
+    // Create transformation request
+    const transformationRequest = {
       sourceDoc1Id: fileIds.sourceDoc1Id,
       sourceDoc2Id: fileIds.sourceDoc2Id,
       templateDocId: fileIds.templateDocId,
@@ -242,56 +242,56 @@ async function testTranslation(fileIds) {
       model: 'claude-3-haiku-20240307'
     };
     
-    // Send translation request
-    const response = await axios.post(`${API_BASE_URL}/translation/process`, translationRequest);
+    // Send transformation request
+    const response = await axios.post(`${API_BASE_URL}/transformation/process`, transformationRequest);
     
     if (response.data.success) {
-      console.log('Translation test passed.');
-      console.log('Translated document saved to:', response.data.data.translatedDocument.path);
-      return response.data.data.translatedDocument;
+      console.log('Transformation test passed.');
+      console.log('Transformed document saved to:', response.data.data.transformedDocument.path);
+      return response.data.data.transformedDocument;
     } else {
-      console.error('Translation test failed:', response.data.error);
+      console.error('Transformation test failed:', response.data.error);
       return null;
     }
   } catch (error) {
-    console.error('Error testing translation:', error);
+    console.error('Error testing transformation:', error);
     return null;
   }
 }
 
-// Test translations folder functionality
-async function testTranslationsFolder(translatedDoc) {
-  console.log('\nTesting translations folder functionality...');
+// Test transformations folder functionality
+async function testTransformationsFolder(transformedDoc) {
+  console.log('\nTesting transformations folder functionality...');
   
   try {
-    // Get translations folder contents
-    const response = await axios.get(`${API_BASE_URL}/files/directory?path=/translations`);
+    // Get transformations folder contents
+    const response = await axios.get(`${API_BASE_URL}/files/directory?path=/transformations`);
     
     if (response.data.success) {
       const files = response.data.contents;
       
-      // Check if translated document exists in the folder
-      const foundFile = files.find(file => file.id === translatedDoc.id);
+      // Check if transformed document exists in the folder
+      const foundFile = files.find(file => file.id === transformedDoc.id);
       
       if (foundFile) {
-        console.log('Translations folder test passed.');
+        console.log('Transformations folder test passed.');
         return true;
       } else {
-        console.error('Translated document not found in translations folder.');
+        console.error('Transformed document not found in transformations folder.');
         return false;
       }
     } else {
-      console.error('Failed to get translations folder contents:', response.data.error);
+      console.error('Failed to get transformations folder contents:', response.data.error);
       return false;
     }
   } catch (error) {
-    console.error('Error testing translations folder:', error);
+    console.error('Error testing transformations folder:', error);
     return false;
   }
 }
 
 // Test file deletion functionality
-async function testFileDeletion(fileIds, translatedDoc) {
+async function testFileDeletion(fileIds, transformedDoc) {
   console.log('\nTesting file deletion functionality...');
   
   try {
@@ -299,7 +299,7 @@ async function testFileDeletion(fileIds, translatedDoc) {
     const response1 = await axios.delete(`${API_BASE_URL}/files/${fileIds.sourceDoc1Id}`);
     const response2 = await axios.delete(`${API_BASE_URL}/files/${fileIds.sourceDoc2Id}`);
     const response3 = await axios.delete(`${API_BASE_URL}/files/${fileIds.templateDocId}`);
-    const response4 = await axios.delete(`${API_BASE_URL}/files/${translatedDoc.id}`);
+    const response4 = await axios.delete(`${API_BASE_URL}/files/${transformedDoc.id}`);
     
     if (response1.data.success && response2.data.success && response3.data.success && response4.data.success) {
       console.log('File deletion tests passed.');
@@ -316,7 +316,7 @@ async function testFileDeletion(fileIds, translatedDoc) {
 
 // Main test function
 async function runTests() {
-  console.log('Starting translate node functionality tests...');
+  console.log('Starting transform node functionality tests...');
   
   try {
     // Setup test environment
@@ -329,22 +329,22 @@ async function runTests() {
       return false;
     }
     
-    // Test translation
-    const translatedDoc = await testTranslation(fileIds);
-    if (!translatedDoc) {
-      console.error('Translation test failed. Aborting remaining tests.');
+    // Test transformation
+    const transformedDoc = await testTransformation(fileIds);
+    if (!transformedDoc) {
+      console.error('Transformation test failed. Aborting remaining tests.');
       return false;
     }
     
-    // Test translations folder
-    const translationsFolderResult = await testTranslationsFolder(translatedDoc);
-    if (!translationsFolderResult) {
-      console.error('Translations folder test failed. Aborting remaining tests.');
+    // Test transformations folder
+    const transformationsFolderResult = await testTransformationsFolder(transformedDoc);
+    if (!transformationsFolderResult) {
+      console.error('Transformations folder test failed. Aborting remaining tests.');
       return false;
     }
     
     // Test file deletion
-    const fileDeletionResult = await testFileDeletion(fileIds, translatedDoc);
+    const fileDeletionResult = await testFileDeletion(fileIds, transformedDoc);
     if (!fileDeletionResult) {
       console.error('File deletion tests failed.');
       return false;
@@ -362,9 +362,9 @@ async function runTests() {
 runTests()
   .then(result => {
     if (result) {
-      console.log('Translate node functionality verified.');
+      console.log('Transform node functionality verified.');
     } else {
-      console.error('Translate node functionality tests failed.');
+      console.error('Transform node functionality tests failed.');
     }
   })
   .catch(error => {

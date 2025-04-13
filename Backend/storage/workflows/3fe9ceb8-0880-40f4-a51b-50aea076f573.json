@@ -18,18 +18,18 @@
       }
     },
     {
-      "id": "translationNode-2",
+      "id": "transformationNode-2",
       "documentId": "",
-      "type": "translationNode",
+      "type": "transformationNode",
       "status": "pending",
       "startTime": "2025-04-10T00:49:20.028Z",
       "endTime": null,
       "progress": 0,
       "error": null,
       "metadata": {
-        "nodeId": "translationNode-2",
-        "nodeType": "translationNode",
-        "description": "Translates data between formats"
+        "nodeId": "transformationNode-2",
+        "nodeType": "transformationNode",
+        "description": "Transforms data between formats"
       }
     },
     {

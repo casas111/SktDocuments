@@ -33,10 +33,10 @@ import { NODE_TYPES, getNodeDefaults } from '../nodes/NodeRegistry';
 import WorkflowCanvas from './WorkflowCanvas';
 import { createWorkflow, updateWorkflow, getWorkflow, listWorkflows } from '../../services/api';
 import { Process } from '../../types/process';
-import { TranslationNodeData } from '../translation/types';
+import { TransformationNodeData } from '../transformation/types';
 import { BaseNodeData, WorkflowNode } from './types';
-import TranslationNodeForm from '../translation/TranslationNodeForm';
-import { TranslationNodeFormData } from '../translation/TranslationNodeForm';
+import TransformationNodeForm from '../transformation/TransformationNodeForm';
+import { TransformationNodeFormData } from '../transformation/TransformationNodeForm';
 
 // Props interface for WorkflowBuilder
 interface WorkflowBuilderProps {
@@ -523,93 +523,115 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onNodesChange, onEdge
     });
   };
 
-  const handleOpenSaveDialog = () => {
-    setIsSaveDialogOpen(true);
-  };
-
-  const handleOpenLoadDialog = () => {
-    loadSavedWorkflows();
-    setIsLoadDialogOpen(true);
-  };
-
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Paper sx={{ p: 2, mb: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h5">Workflow Builder</Typography>
-          <Box>
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<SaveIcon />}
-              onClick={() => setIsSaveDialogOpen(true)}
-              sx={{ mr: 1 }}
-            >
-              Save
-            </Button>
+      <Box sx={{ p: 2, borderBottom: '1px solid #e0e0e0' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+          <TextField
+            label="Workflow Name"
+            value={workflowName}
+            onChange={(e) => setWorkflowName(e.target.value)}
+            variant="outlined"
+            size="small"
+            sx={{ width: 300 }}
+            error={!workflowName.trim() && isSaveDialogOpen}
+            helperText={!workflowName.trim() && isSaveDialogOpen ? 'Workflow name is required' : ''}
+          />
+          
+          <Box sx={{ display: 'flex', gap: 1 }}>
             <Button
               variant="outlined"
-              color="primary"
-              startIcon={<UploadFileIcon />}
+              startIcon={<SaveIcon />}
+              onClick={handleSaveWorkflow}
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={24} /> : 'Save'}
+            </Button>
+            
+            <Button
+              variant="outlined"
               onClick={() => setIsLoadDialogOpen(true)}
+              disabled={loading}
             >
               Load
             </Button>
-          </Box>
-        </Box>
-        <Divider sx={{ mb: 2 }} />
-        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-          <Tooltip title="Add Communication Node">
+            
             <Button
               variant="outlined"
+              onClick={handleExportWorkflow}
+              disabled={nodes.length === 0 || loading}
+            >
+              Export
+            </Button>
+            
+            <Button
+              variant="outlined"
+              component="label"
+              disabled={loading}
+            >
+              Import
+              <input
+                type="file"
+                accept=".json"
+                hidden
+                onChange={handleImportWorkflow}
+              />
+            </Button>
+            
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={handleClearWorkflow}
+              disabled={nodes.length === 0 || loading}
+            >
+              Clear
+            </Button>
+          </Box>
+        </Box>
+        
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="Add Communication Node">
+            <Button
+              variant="contained"
               startIcon={<MessageIcon />}
-              onClick={() => {
-                setCurrentNodeType(NODE_TYPES.communicationNode);
-                setIsDialogOpen(true);
-              }}
+              onClick={() => handleAddNode('communication')}
             >
               Communication
             </Button>
           </Tooltip>
-          <Tooltip title="Add Translation Node">
+          
+          <Tooltip title="Add Transformation Node">
             <Button
-              variant="outlined"
+              variant="contained"
               startIcon={<TranslateIcon />}
-              onClick={() => {
-                setCurrentNodeType(NODE_TYPES.translationNode);
-                setIsDialogOpen(true);
-              }}
+              onClick={() => handleAddNode('transformation')}
             >
-              Translation
+              Transformation
             </Button>
           </Tooltip>
+          
           <Tooltip title="Add Simetrik Node">
             <Button
-              variant="outlined"
+              variant="contained"
               startIcon={<CloudIcon />}
-              onClick={() => {
-                setCurrentNodeType(NODE_TYPES.simetrikNode);
-                setIsDialogOpen(true);
-              }}
+              onClick={() => handleAddNode('simetrik')}
             >
               Simetrik
             </Button>
           </Tooltip>
-          <Tooltip title="Add Comparison Node">
+          
+          <Tooltip title="Add Custom Node">
             <Button
               variant="outlined"
-              startIcon={<CompareArrowsIcon />}
-              onClick={() => {
-                setCurrentNodeType(NODE_TYPES.comparisonNode);
-                setIsDialogOpen(true);
-              }}
+              onClick={() => setIsDialogOpen(true)}
             >
-              Comparison
+              Custom Node
             </Button>
           </Tooltip>
         </Box>
-      </Paper>
-
+      </Box>
+      
       <Box sx={{ flex: 1, position: 'relative' }}>
         <ReactFlowProvider>
           <WorkflowCanvas
@@ -620,166 +642,89 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onNodesChange, onEdge
           />
         </ReactFlowProvider>
       </Box>
-
-      {/* Add Node Dialog */}
-      <Dialog 
-        open={isDialogOpen} 
-        onClose={() => setIsDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>Add New Node</DialogTitle>
-        <DialogContent>
-          {currentNodeType === NODE_TYPES.translationNode ? (
-            <TranslationNodeForm
-              onSubmit={(formData: TranslationNodeFormData) => {
-                const newNode: WorkflowNode = {
-                  id: `node-${nodeIdCounter.current++}`,
-                  type: NODE_TYPES.translationNode,
-                  position: { x: 100, y: 100 },
-                  data: {
-                    label: formData.nodeName,
-                    description: 'Transforms documents using Claude AI',
-                    sourceDoc1: formData.inputDocumentUrls[0]?.url ? {
-                      name: formData.inputDocumentUrls[0].url.split('/').pop() || 'Unknown file',
-                      path: formData.inputDocumentUrls[0].url
-                    } : null,
-                    sourceDoc2: formData.inputDocumentUrls[1]?.url ? {
-                      name: formData.inputDocumentUrls[1].url.split('/').pop() || 'Unknown file',
-                      path: formData.inputDocumentUrls[1].url
-                    } : null,
-                    templateDoc: formData.exampleFormatUrl ? {
-                      name: formData.exampleFormatUrl.split('/').pop() || 'Unknown file',
-                      path: formData.exampleFormatUrl
-                    } : null,
-                    instruction: formData.instructions,
-                    model: formData.model,
-                    status: 'idle' as const,
-                    outputDoc: null
-                  }
-                };
-                setNodes(prevNodes => [...prevNodes, newNode]);
-                setIsDialogOpen(false);
-              }}
-              onCancel={() => setIsDialogOpen(false)}
-            />
-          ) : (
-            <>
-              <TextField
-                autoFocus
-                margin="dense"
-                id="name"
-                label="Node Name"
-                type="text"
-                fullWidth
-                variant="outlined"
-                value={nodeName}
-                onChange={(e) => setNodeName(e.target.value)}
-                sx={{ mb: 2 }}
-              />
-              
-              {currentNodeType === NODE_TYPES.communicationNode && (
-                <FormControl fullWidth margin="dense">
-                  <InputLabel id="comm-mode-label">Communication Mode</InputLabel>
-                  <Select
-                    labelId="comm-mode-label"
-                    id="comm-mode"
-                    value={communicationMode}
-                    label="Communication Mode"
-                    onChange={(e) => setCommunicationMode(e.target.value as 'send' | 'write')}
-                  >
-                    <MenuItem value="send">Send</MenuItem>
-                    <MenuItem value="write">Write</MenuItem>
-                  </Select>
-                </FormControl>
-              )}
-            </>
-          )}
-        </DialogContent>
-        {currentNodeType !== NODE_TYPES.translationNode && (
-          <DialogActions>
-            <Button onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreateNode} variant="contained" color="primary">
-              Create
-            </Button>
-          </DialogActions>
-        )}
-      </Dialog>
       
-      {/* Save Workflow Dialog */}
-      <Dialog open={isSaveDialogOpen} onClose={() => setIsSaveDialogOpen(false)}>
-        <DialogTitle>Save Workflow</DialogTitle>
+      {/* Add Node Dialog */}
+      <Dialog open={isDialogOpen} onClose={() => setIsDialogOpen(false)}>
+        <DialogTitle>Add Custom Node</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            id="workflow-name"
-            label="Workflow Name"
-            type="text"
-            fullWidth
-            variant="outlined"
-            value={workflowName}
-            onChange={(e) => setWorkflowName(e.target.value)}
-          />
+          <Box sx={{ mt: 2, minWidth: 400 }}>
+            <FormControl fullWidth sx={{ mb: 2 }}>
+              <InputLabel>Node Type</InputLabel>
+              <Select
+                value={currentNodeType}
+                onChange={(e) => setCurrentNodeType(e.target.value)}
+                label="Node Type"
+              >
+                <MenuItem value="communication">Communication Node</MenuItem>
+                <MenuItem value="transformation">Transformation Node</MenuItem>
+                <MenuItem value="simetrik">Simetrik Node</MenuItem>
+                <MenuItem value="custom">Custom Node</MenuItem>
+              </Select>
+            </FormControl>
+            
+            <TextField
+              fullWidth
+              label="Node Name"
+              value={nodeName}
+              onChange={(e) => setNodeName(e.target.value)}
+              variant="outlined"
+              sx={{ mb: 2 }}
+            />
+            
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsSaveDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleSaveWorkflow} 
-            variant="contained" 
-            color="primary"
-            disabled={loading}
-          >
-            {loading ? <CircularProgress size={24} /> : 'Save'}
+          <Button onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleCreateNode} variant="contained">
+            Add Node
           </Button>
         </DialogActions>
       </Dialog>
       
       {/* Load Workflow Dialog */}
-      <Dialog 
-        open={isLoadDialogOpen} 
-        onClose={() => setIsLoadDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
+      <Dialog open={isLoadDialogOpen} onClose={() => setIsLoadDialogOpen(false)}>
         <DialogTitle>Load Workflow</DialogTitle>
         <DialogContent>
-          {loading ? (
-            <Box display="flex" justifyContent="center" my={4}>
-              <CircularProgress />
-            </Box>
-          ) : savedWorkflows.length === 0 ? (
-            <Typography variant="body1" color="text.secondary" sx={{ my: 2 }}>
-              No saved workflows found.
-            </Typography>
-          ) : (
-            <Box sx={{ mt: 2 }}>
-              <FormControl fullWidth>
-                <InputLabel id="workflow-select-label">Select Workflow</InputLabel>
+          <Box sx={{ mt: 2, minWidth: 400 }}>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>Select Workflow</InputLabel>
                 <Select
-                  labelId="workflow-select-label"
-                  id="workflow-select"
                   value={selectedWorkflowId}
+                  onChange={(e) => setSelectedWorkflowId(e.target.value)}
                   label="Select Workflow"
-                  onChange={(e) => setSelectedWorkflowId(e.target.value as string)}
                 >
                   {savedWorkflows.map((workflow) => (
                     <MenuItem key={workflow.id} value={workflow.id}>
-                      {workflow.name} - {workflow.updatedAt ? new Date(workflow.updatedAt).toLocaleString() : 'No date'}
+                      {workflow.name}
                     </MenuItem>
                   ))}
                 </Select>
               </FormControl>
-            </Box>
-          )}
+            )}
+            
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setIsLoadDialogOpen(false)}>Cancel</Button>
           <Button 
             onClick={handleLoadWorkflow} 
-            variant="contained" 
-            color="primary"
-            disabled={loading || !selectedWorkflowId}
+            variant="contained"
+            disabled={!selectedWorkflowId || loading}
           >
             Load
           </Button>
@@ -793,10 +738,9 @@ const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({ onNodesChange, onEdge
         onClose={handleNotificationClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
-        <Alert 
-          onClose={handleNotificationClose} 
+        <Alert
+          onClose={handleNotificationClose}
           severity={notification.severity}
-          variant="filled"
           sx={{ width: '100%' }}
         >
           {notification.message}

@@ -14,13 +14,13 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import { styled } from '@mui/material/styles';
-import EnhancedTranslationNode from '../translation/EnhancedTranslationNode';
+import EnhancedTransformationNode from '../transformation/EnhancedTransformationNode';
 import WorkflowToolbar from './WorkflowToolbar';
-import { TranslationNodeData } from '../translation/types';
+import { TransformationNodeData } from '../transformation/types';
 import { BaseNodeData } from './types';
 
 // Types
-type NodeData = BaseNodeData | TranslationNodeData;
+type NodeData = BaseNodeData | TransformationNodeData;
 type WorkflowNode = Node<NodeData>;
 
 interface WorkflowCanvasProps {
@@ -32,7 +32,7 @@ interface WorkflowCanvasProps {
 
 // Define custom node types
 const nodeTypes: NodeTypes = {
-  translation: EnhancedTranslationNode
+  transformation: EnhancedTransformationNode
 };
 
 // Initial nodes and edges
