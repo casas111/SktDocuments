@@ -1,5 +1,4 @@
 import React from 'react';
-import { Handle, Position } from 'reactflow';
 import { Box, Typography, Paper } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { TranslationNodeData } from './types';
@@ -11,41 +10,15 @@ const NodeContainer = styled(Paper)(({ theme }) => ({
   border: `1px solid ${theme.palette.divider}`,
 }));
 
-interface EnhancedTranslationNodeProps {
-  id: string;
+interface TranslationNodePreviewProps {
   data: TranslationNodeData;
-  selected: boolean;
-  dragging: boolean;
-  targetPosition?: Position;
-  sourcePosition?: Position;
-  isPreview?: boolean;
 }
 
-const EnhancedTranslationNode: React.FC<EnhancedTranslationNodeProps> = ({
-  id,
-  data,
-  selected,
-  dragging,
-  targetPosition = Position.Left,
-  sourcePosition = Position.Right,
-  isPreview = false
+const TranslationNodePreview: React.FC<TranslationNodePreviewProps> = ({
+  data
 }) => {
   return (
-    <NodeContainer elevation={selected ? 4 : 1}>
-      {!isPreview && (
-        <>
-          <Handle
-            type="target"
-            position={targetPosition}
-            style={{ background: '#555' }}
-          />
-          <Handle
-            type="source"
-            position={sourcePosition}
-            style={{ background: '#555' }}
-          />
-        </>
-      )}
+    <NodeContainer elevation={1}>
       <Box>
         <Typography variant="subtitle1" gutterBottom>
           {data.label}
@@ -76,4 +49,4 @@ const EnhancedTranslationNode: React.FC<EnhancedTranslationNodeProps> = ({
   );
 };
 
-export default EnhancedTranslationNode; 
+export default TranslationNodePreview; 

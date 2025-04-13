@@ -30,6 +30,7 @@ import CustomInstructionEditor from '../common/CustomInstructionEditor';
 import { Position } from 'reactflow';
 import EnhancedTranslationNode from '../nodes/EnhancedTranslationNode';
 import TranslationService from '../../services/TranslationService';
+import TranslationNodePreview from './TranslationNodePreview';
 
 // Create an instance of TranslationService
 const translationService = new TranslationService();
@@ -377,19 +378,8 @@ const TranslationNodeForm: React.FC<TranslationNodeFormProps> = ({
             display: 'flex',
             justifyContent: 'center'
           }}>
-            <EnhancedTranslationNode 
-              id="preview-node"
+            <TranslationNodePreview 
               data={createPreviewNodeData()}
-              selected={false}
-              dragging={false}
-              targetPosition={Position.Left}
-              sourcePosition={Position.Right}
-              zIndex={1}
-              type="translation"
-              isConnectable={true}
-              xPos={0}
-              yPos={0}
-              dragHandle=".drag-handle"
             />
           </Box>
         )}
