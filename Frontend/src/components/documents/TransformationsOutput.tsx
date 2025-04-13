@@ -30,7 +30,7 @@ import { API_ENDPOINTS } from '../../config/api';
 import { UnifiedDocumentService } from '../../services/unifiedDocumentService';
 
 // Styled components
-const TranslationsContainer = styled(Paper)`
+const TransformationsContainer = styled(Paper)`
   padding: 0;
   border-radius: 8px;
   border: 1px solid #e0e0e0;
@@ -72,12 +72,12 @@ interface FileItem {
   updatedAt?: string;
 }
 
-interface TranslationsOutputProps {
+interface TransformationsOutputProps {
   onFileSelect?: (file: FileItem | null) => void;
   unifiedDocumentService: UnifiedDocumentService;
 }
 
-const TranslationsOutput: React.FC<TranslationsOutputProps> = ({
+const TransformationsOutput: React.FC<TransformationsOutputProps> = ({
   onFileSelect,
   unifiedDocumentService
 }) => {
@@ -89,19 +89,19 @@ const TranslationsOutput: React.FC<TranslationsOutputProps> = ({
   const [previewContent, setPreviewContent] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
   
-  // Load translations on component mount
+  // Load transformations on component mount
   useEffect(() => {
-    loadTranslations();
+    loadTransformations();
   }, []);
   
-  // Load translations from the translations folder
-  const loadTranslations = async () => {
+  // Load transformations from the transformations folder
+  const loadTransformations = async () => {
     setLoading(true);
     setError(null);
     
     try {
       const response = await axios.get(`${API_ENDPOINTS.FILES}/directory`, {
-        params: { path: '/translations' }
+        params: { path: '/transformations' }
       });
       
       if (response.data.success && response.data.contents) {
@@ -109,11 +109,11 @@ const TranslationsOutput: React.FC<TranslationsOutputProps> = ({
         const filesList = response.data.contents.filter((item: FileItem) => item.type !== 'folder');
         setFiles(filesList);
       } else {
-        setError('Failed to load translations');
+        setError('Failed to load transformations');
       }
     } catch (error) {
-      console.error('Error loading translations:', error);
-      setError('Error loading translations. Please try again.');
+      console.error('Error loading transformations:', error);
+      setError('Error loading transformations. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -210,7 +210,7 @@ const TranslationsOutput: React.FC<TranslationsOutputProps> = ({
       onFileSelect(null); // Clear selection
     }
     
-    loadTranslations();
+    loadTransformations();
   };
   
   return (
@@ -218,16 +218,16 @@ const TranslationsOutput: React.FC<TranslationsOutputProps> = ({
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
         <Typography variant="subtitle1" fontWeight="medium" sx={{ display: 'flex', alignItems: 'center' }}>
           <FolderIcon sx={{ mr: 1, color: '#FFC107' }} />
-          Translations Output
+          Transformations Output
         </Typography>
-        <Tooltip title="Refresh translations">
+        <Tooltip title="Refresh transformations">
           <IconButton size="small" onClick={handleRefresh} disabled={loading}>
             {loading ? <CircularProgress size={20} /> : <RefreshIcon />}
           </IconButton>
         </Tooltip>
       </Box>
       
-      <TranslationsContainer elevation={0}>
+      <TransformationsContainer elevation={0}>
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
             <CircularProgress size={30} />
@@ -240,7 +240,7 @@ const TranslationsOutput: React.FC<TranslationsOutputProps> = ({
           <EmptyState>
             <DescriptionIcon sx={{ fontSize: 48, mb: 2, opacity: 0.5 }} />
             <Typography variant="body1" gutterBottom>
-              No translated documents yet
+              No transformed documents yet
             </Typography>
             <Typography variant="body2">
               Processed documents will appear here
@@ -292,7 +292,7 @@ const TranslationsOutput: React.FC<TranslationsOutputProps> = ({
             ))}
           </List>
         )}
-      </TranslationsContainer>
+      </TransformationsContainer>
       
       {/* Preview Dialog */}
       <Dialog
@@ -341,4 +341,4 @@ const TranslationsOutput: React.FC<TranslationsOutputProps> = ({
   );
 };
 
-export default TranslationsOutput;
+export default TransformationsOutput;

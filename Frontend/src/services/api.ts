@@ -485,8 +485,8 @@ export const getAllProcesses = async (): Promise<Process[]> => {
   return response.data;
 };
 
-export const processTranslation = async (documentId: string, targetLanguage: string): Promise<Process> => {
-  const response = await axios.post(`${API_BASE_URL}/processes/translation`, {
+export const processTransformation = async (documentId: string, targetLanguage: string): Promise<Process> => {
+  const response = await axios.post(`${API_BASE_URL}/processes/transformation`, {
     documentId,
     targetLanguage
   });

@@ -13,20 +13,21 @@ export interface FileItem {
   updatedAt?: string;
 }
 
-export interface TranslationRequest {
+export interface TransformationRequest {
   sourceDocIds: string[];
   templateDocId: string;
   instruction: string;
+  outputTemplate?: string;
   model?: string;
 }
 
-export interface TranslationResult {
+export interface TransformationResult {
   success: boolean;
   message?: string;
   error?: string;
   status?: 'success' | 'error';
   data?: {
-    translatedDocument: {
+    transformedDocument: {
       id: string;
       name: string;
       path: string;
@@ -39,11 +40,12 @@ export interface TranslationResult {
   };
 }
 
-export interface TranslationNodeFormData {
+export interface TransformationNodeFormData {
   nodeName: string;
   inputDocumentUrls: { id: string; url: string }[];
   exampleFormatUrl: string;
   instructions: string;
+  outputTemplate: string;
   model: string;
   outputDoc?: {
     name: string;
@@ -51,14 +53,14 @@ export interface TranslationNodeFormData {
   } | null;
 }
 
-class TranslationService {
+class TransformationService {
   /**
-   * Process a translation using Claude AI
+   * Process a transformation using Claude AI
    * 
-   * @param request Translation request with document URLs and instructions
-   * @returns Promise with translation result
+   * @param request Transformation request with document URLs and instructions
+   * @returns Promise with transformation result
    */
-  async processTranslation(request: TranslationRequest): Promise<TranslationResult> {
+  async processTransformation(request: TransformationRequest): Promise<TransformationResult> {
     try {
       // Extract filenames from URLs
       const sourceDocIds = request.sourceDocIds.map(url => this.extractDocumentIdFromUrl(url));
@@ -83,16 +85,17 @@ class TranslationService {
         };
       }
 
-      const response = await axios.post(`${API_ENDPOINTS.TRANSLATION}/process`, {
+      const response = await axios.post(`${API_ENDPOINTS.TRANSFORMATION}/process`, {
         sourceDocIds,
         templateDocId,
         instruction: request.instruction,
+        outputTemplate: request.outputTemplate || '',
         model: request.model || 'claude-3-haiku-20240307'
       });
 
       return response.data;
     } catch (error) {
-      console.error('Translation error:', error);
+      console.error('Transformation error:', error);
       if (axios.isAxiosError(error)) {
         return {
           success: false,
@@ -152,4 +155,4 @@ class TranslationService {
   }
 }
 
-export default TranslationService;
+export default TransformationService;

@@ -1,5 +1,5 @@
 import { Node, Edge } from 'reactflow';
-import { TranslationNodeData } from '../translation/types';
+import { TransformationNodeData } from '../transformation/types';
 
 // Base node data interface
 export interface BaseNodeData {
@@ -10,7 +10,7 @@ export interface BaseNodeData {
 }
 
 // Union type for all possible node data types
-export type NodeData = BaseNodeData | TranslationNodeData;
+export type NodeData = BaseNodeData | TransformationNodeData;
 
 // Workflow node type
 export type WorkflowNode = Node<NodeData>;
@@ -32,4 +32,4 @@ export interface WorkflowTemplate {
   description: string;
   nodes: WorkflowNode[];
   edges: Edge[];
-} 
+}

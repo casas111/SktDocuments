@@ -9,11 +9,11 @@ export const API_ENDPOINTS = {
     DELETE: (id: string) => `/documents/${id}`,
   },
   WORKFLOW: {
-    TRANSLATE: '/workflow/translate',
+    TRANSFORM: '/workflow/transform',
     COMMUNICATE: '/workflow/communicate',
     COMPARE: '/workflow/compare',
     SIMETRIK: '/workflow/simetrik',
     STATUS: (id: string) => `/workflow/status/${id}`,
     ALL_STATUSES: '/workflow/status',
   },
-}; 
+};

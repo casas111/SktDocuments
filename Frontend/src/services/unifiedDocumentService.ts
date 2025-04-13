@@ -187,12 +187,12 @@ export class UnifiedDocumentService {
   }
   
   /**
-   * Process translation with Claude AI
+   * Process transformation with Claude AI
    * 
-   * @param {object} params - Translation parameters
-   * @returns {Promise} - Promise with translation result
+   * @param {object} params - Transformation parameters
+   * @returns {Promise} - Promise with transformation result
    */
-  async processTranslation(params: {
+  async processTransformation(params: {
     sourceDoc1Id: string;
     sourceDoc2Id: string;
     templateDocId: string;
@@ -200,15 +200,15 @@ export class UnifiedDocumentService {
     model: string;
   }): Promise<any> {
     try {
-      const response = await axios.post(`${API_ENDPOINTS.TRANSLATION}/process`, params);
+      const response = await axios.post(`${API_ENDPOINTS.TRANSFORMATION}/process`, params);
       
       if (response.data.success) {
         return response.data.data;
       } else {
-        throw new Error(response.data.error || 'Failed to process translation');
+        throw new Error(response.data.error || 'Failed to process transformation');
       }
     } catch (error) {
-      console.error('Error processing translation:', error);
+      console.error('Error processing transformation:', error);
       throw error;
     }
   }

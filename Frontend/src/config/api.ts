@@ -12,8 +12,8 @@ export const API_ENDPOINTS = {
   WORKFLOWS: `${API_BASE_URL}/workflows`,
   NODES: `${API_BASE_URL}/nodes`,
   
-  // Translation endpoints
-  TRANSLATION: `${API_BASE_URL}/translation`,
+  // Transformation endpoints
+  TRANSFORMATION: `${API_BASE_URL}/transformation`,
   
   // Claude AI endpoints
   CLAUDE: `${API_BASE_URL}/claude`

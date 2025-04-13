@@ -1,7 +1,7 @@
 import React from 'react';
 import { Handle, Position } from 'reactflow';
 import { Card, CardContent, Typography, IconButton, Divider, Chip, Box, Collapse } from '@mui/material';
-import TranslateIcon from '@mui/icons-material/Translate';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
@@ -81,7 +81,7 @@ const OutputHandle = styled(Handle)`
   }
 `;
 
-interface TranslationNodeProps {
+interface TransformationNodeProps {
   id: string;
   data: {
     label: string;
@@ -91,7 +91,7 @@ interface TranslationNodeProps {
   selected: boolean;
 }
 
-const TranslationNode: React.FC<TranslationNodeProps> = ({ id, data, selected }) => {
+const TransformationNode: React.FC<TransformationNodeProps> = ({ id, data, selected }) => {
   const [expanded, setExpanded] = React.useState(false);
   
   const toggleExpanded = (e: React.MouseEvent) => {
@@ -116,13 +116,13 @@ const TranslationNode: React.FC<TranslationNodeProps> = ({ id, data, selected })
       />
       
       <NodeHeader>
-        <TranslateIcon style={{ color: '#4caf50', marginRight: '8px' }} />
+        <AutoFixHighIcon style={{ color: '#4caf50', marginRight: '8px' }} />
         <Typography variant="subtitle1" fontWeight="bold" noWrap sx={{ flexGrow: 1 }}>
-          {data.label || 'Translation'}
+          {data.label || 'Transformation'}
         </Typography>
         <Chip 
           size="small" 
-          label="Translate" 
+          label="Transform" 
           color="success" 
           variant="outlined" 
           sx={{ ml: 1, fontSize: '0.7rem', flexShrink: 0 }}
@@ -131,7 +131,7 @@ const TranslationNode: React.FC<TranslationNodeProps> = ({ id, data, selected })
       
       <NodeContent>
         <Typography variant="body2" color="text.secondary">
-          {data.description || 'Translates documents from one language to another'}
+          {data.description || 'Transforms documents using Claude AI'}
         </Typography>
         
         <Divider sx={{ my: 1 }} />
@@ -151,7 +151,7 @@ const TranslationNode: React.FC<TranslationNodeProps> = ({ id, data, selected })
               Outputs:
             </Typography>
             <Box sx={{ pl: 1 }}>
-              <Typography variant="caption" display="block">• List of translated documents</Typography>
+              <Typography variant="caption" display="block">• List of transformed documents</Typography>
             </Box>
           </Box>
         </InputOutputSection>
@@ -179,8 +179,8 @@ const TranslationNode: React.FC<TranslationNodeProps> = ({ id, data, selected })
             </Typography>
             <FileDownloader
               nodeId={id}
-              outputId="translatedDocuments" 
-              label="Translated Documents"
+              outputId="transformedDocuments" 
+              label="Transformed Documents"
             />
           </Box>
         </Collapse>
@@ -206,11 +206,11 @@ const TranslationNode: React.FC<TranslationNodeProps> = ({ id, data, selected })
       <OutputHandle 
         type="source" 
         position={Position.Right} 
-        id="translatedDocuments" 
+        id="transformedDocuments" 
         style={{ top: 80 }}
       />
     </NodeCard>
   );
 };
 
-export default TranslationNode;
+export default TransformationNode;

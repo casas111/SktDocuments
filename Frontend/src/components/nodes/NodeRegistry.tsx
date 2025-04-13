@@ -4,12 +4,12 @@ import CommunicationNode from './CommunicationNode';
 import ComparisonNode from './ComparisonNode';
 import SimetrikNode from './SimetrikNode';
 import RedNode from './RedNode';
-import EnhancedTranslationNode from './EnhancedTranslationNode';
+import EnhancedTransformationNode from '../transformation/EnhancedTransformationNode';
 
 // Node type constants
 export const NODE_TYPES = {
   communicationNode: 'communicationNode',
-  translationNode: 'translationNode',
+  transformationNode: 'transformationNode',
   simetrikNode: 'simetrikNode',
   comparisonNode: 'comparisonNode',
   redNode: 'redNode',
@@ -18,7 +18,7 @@ export const NODE_TYPES = {
 // Node type components mapping
 export const nodeTypes: NodeTypes = {
   [NODE_TYPES.communicationNode]: CommunicationNode,
-  [NODE_TYPES.translationNode]: EnhancedTranslationNode, // Updated to use EnhancedTranslationNode
+  [NODE_TYPES.transformationNode]: EnhancedTransformationNode, // Updated to use EnhancedTransformationNode
   [NODE_TYPES.simetrikNode]: SimetrikNode,
   [NODE_TYPES.comparisonNode]: ComparisonNode,
   [NODE_TYPES.redNode]: RedNode,
@@ -67,7 +67,7 @@ export const getNodeDefaults = (type: string, position: { x: number, y: number }
         },
       };
     
-    case NODE_TYPES.translationNode:
+    case NODE_TYPES.transformationNode:
       return {
         id,
         type,
@@ -80,7 +80,7 @@ export const getNodeDefaults = (type: string, position: { x: number, y: number }
         data: {
           ...baseNode.data,
           label: label || getDefaultLabel(type),
-          icon: 'translate',
+          icon: 'transform',
           description: 'Transforms documents using a template format with Claude AI',
           capabilities: ['Document Transformation', 'Template Processing', 'AI Integration'],
         },
@@ -152,8 +152,8 @@ const getDefaultLabel = (type: string): string => {
   switch (type) {
     case NODE_TYPES.communicationNode:
       return 'Communication Node';
-    case NODE_TYPES.translationNode:
-      return 'Document Translation';
+    case NODE_TYPES.transformationNode:
+      return 'Document Transformation';
     case NODE_TYPES.simetrikNode:
       return 'Simetrik SaaS Node';
     case NODE_TYPES.comparisonNode:
@@ -172,7 +172,7 @@ export const WORKFLOW_TEMPLATES = {
     description: 'A simple workflow with one of each node type',
     nodes: [
       getNodeDefaults(NODE_TYPES.communicationNode, { x: 100, y: 100 }, 'API Gateway'),
-      getNodeDefaults(NODE_TYPES.translationNode, { x: 350, y: 100 }, 'Document Translator'),
+      getNodeDefaults(NODE_TYPES.transformationNode, { x: 350, y: 100 }, 'Document Transformer'),
       getNodeDefaults(NODE_TYPES.simetrikNode, { x: 600, y: 100 }, 'Simetrik Connector'),
       getNodeDefaults(NODE_TYPES.comparisonNode, { x: 850, y: 100 }, 'Data Validator'),
     ],
@@ -188,7 +188,7 @@ export const WORKFLOW_TEMPLATES = {
     nodes: [
       getNodeDefaults(NODE_TYPES.communicationNode, { x: 100, y: 100 }, 'REST API'),
       getNodeDefaults(NODE_TYPES.communicationNode, { x: 100, y: 250 }, 'WebSocket'),
-      getNodeDefaults(NODE_TYPES.translationNode, { x: 350, y: 175 }, 'Document Transformer'),
+      getNodeDefaults(NODE_TYPES.transformationNode, { x: 350, y: 175 }, 'Document Transformer'),
       getNodeDefaults(NODE_TYPES.simetrikNode, { x: 600, y: 100 }, 'Simetrik API'),
       getNodeDefaults(NODE_TYPES.simetrikNode, { x: 600, y: 250 }, 'Simetrik Database'),
       getNodeDefaults(NODE_TYPES.comparisonNode, { x: 850, y: 175 }, 'Result Validator'),
@@ -202,12 +202,12 @@ export const WORKFLOW_TEMPLATES = {
       { id: 'e5-6', source: '5', target: '6', animated: true },
     ],
   },
-  translationWorkflow: {
-    name: 'Document Translation Workflow',
-    description: 'A workflow focused on document translation with Claude AI',
+  transformationWorkflow: {
+    name: 'Document Transformation Workflow',
+    description: 'A workflow focused on document transformation with Claude AI',
     nodes: [
       getNodeDefaults(NODE_TYPES.communicationNode, { x: 100, y: 150 }, 'Document Source'),
-      getNodeDefaults(NODE_TYPES.translationNode, { x: 350, y: 150 }, 'Document Translator'),
+      getNodeDefaults(NODE_TYPES.transformationNode, { x: 350, y: 150 }, 'Document Transformer'),
       getNodeDefaults(NODE_TYPES.simetrikNode, { x: 600, y: 150 }, 'Output Processor'),
     ],
     edges: [

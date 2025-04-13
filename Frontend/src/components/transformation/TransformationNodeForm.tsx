@@ -1,617 +1,425 @@
-import React, { useState } from 'react';
-import { 
-  Box, 
-  Typography, 
-  Paper, 
-  Button, 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogActions, 
-  CircularProgress,
-  Chip,
-  Tooltip,
-  Tabs,
-  Tab,
-  Grid,
-  Card,
-  CardContent,
-  IconButton,
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Typography,
+  TextField,
+  Button,
+  Paper,
   Divider,
-  useTheme,
-  useMediaQuery
+  IconButton,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  ListItemSecondaryAction,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  CircularProgress,
+  Alert,
+  Snackbar
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
-import CloseIcon from '@mui/icons-material/Close';
-import DocumentSelector from '../documents/DocumentSelector';
+import DeleteIcon from '@mui/icons-material/Delete';
+import LinkIcon from '@mui/icons-material/Link';
+import DescriptionIcon from '@mui/icons-material/Description';
+import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf';
+import styled from '@emotion/styled';
+import CustomInstructionEditor from '../common/CustomInstructionEditor';
+import { Position } from 'reactflow';
 import TransformationNodePreview from './TransformationNodePreview';
-import axios from 'axios';
-import { API_BASE_URL } from '../../config/api';
+import { TransformationService } from './TransformationService';
+
+// Create an instance of TransformationService
+const transformationService = new TransformationService();
 
 // Styled components
-const FormContainer = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(2),
-  '& .MuiTextField-root': {
-    marginBottom: theme.spacing(2),
-  },
-}));
+const FormContainer = styled(Paper)`
+  padding: 24px;
+  margin-bottom: 24px;
+`;
 
-const StyledTab = styled(Tab)(({ theme }) => ({
-  fontWeight: 500,
-  textTransform: 'none',
-}));
+const SectionTitle = styled(Typography)`
+  margin-bottom: 16px;
+  font-weight: 500;
+`;
 
-const StyledPaper = styled(Paper)(({ theme }) => ({
-  padding: theme.spacing(3),
-  borderRadius: theme.shape.borderRadius * 2,
-  boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-  background: 'linear-gradient(to bottom, #ffffff, #f9f9ff)',
-}));
+const UrlInput = styled(Box)`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+`;
 
-const StyledDialogTitle = styled(DialogTitle)(({ theme }) => ({
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  padding: theme.spacing(2, 3),
-  background: 'linear-gradient(45deg, #f5f7ff 30%, #eef2ff 90%)',
-  borderBottom: '1px solid #e0e0e0',
-}));
-
-// Types for document selection
-interface FileItem {
+// Types
+interface DocumentUrl {
   id: string;
-  name: string;
-  path: string;
-  type: string;
-  size?: number;
-  mimeType?: string;
-  createdAt?: string;
-  updatedAt?: string;
+  url: string;
 }
 
 interface TransformationNodeFormProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave?: (nodeData: any) => void;
-  initialData?: any;
+  onSubmit: (formData: TransformationNodeFormData) => void;
+  onCancel: () => void;
+  initialData?: Partial<TransformationNodeFormData>;
 }
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-function TabPanel(props: TabPanelProps) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`node-tabpanel-${index}`}
-      aria-labelledby={`node-tab-${index}`}
-      {...other}
-    >
-      {value === index && (
-        <Box sx={{ pt: 3 }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
+export interface TransformationNodeFormData {
+  nodeName: string;
+  inputDocumentUrls: DocumentUrl[];
+  exampleFormatUrl: string;
+  instructions: string;
+  outputTemplate: string;
+  model: string;
+  outputDoc?: {
+    name: string;
+    path: string;
+  } | null;
 }
 
 const TransformationNodeForm: React.FC<TransformationNodeFormProps> = ({
-  isOpen,
-  onClose,
-  onSave,
+  onSubmit,
+  onCancel,
   initialData
 }) => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  
-  const [tabValue, setTabValue] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-  
   // Form state
-  const [name, setName] = useState(initialData?.name || '');
-  const [description, setDescription] = useState(initialData?.description || '');
-  const [instruction, setInstruction] = useState(initialData?.instruction || '');
+  const [nodeName, setNodeName] = useState(initialData?.nodeName || 'Document Transformation');
+  const [inputDocumentUrls, setInputDocumentUrls] = useState<DocumentUrl[]>(
+    initialData?.inputDocumentUrls || [{ id: `doc-${Date.now()}`, url: '' }]
+  );
+  const [exampleFormatUrl, setExampleFormatUrl] = useState(initialData?.exampleFormatUrl || '');
+  const [instructions, setInstructions] = useState(initialData?.instructions || '');
   const [outputTemplate, setOutputTemplate] = useState(initialData?.outputTemplate || '');
   const [model, setModel] = useState(initialData?.model || 'claude-3-haiku-20240307');
-  const [templateDoc, setTemplateDoc] = useState<FileItem | null>(initialData?.templateDoc || null);
   
-  // Document selector state
-  const [docSelectorOpen, setDocSelectorOpen] = useState(false);
-  const [docSelectorType, setDocSelectorType] = useState<'template' | null>(null);
+  // Validation state
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showPreview, setShowPreview] = useState(false);
   
-  // Preview state
-  const [previewData, setPreviewData] = useState({
-    name: '',
-    description: '',
-    instruction: '',
-    outputTemplate: '',
-    model: '',
-    templateDoc: null as FileItem | null
+  // Add new document URL input
+  const handleAddDocumentUrl = () => {
+    setInputDocumentUrls([
+      ...inputDocumentUrls,
+      { id: `doc-${Date.now()}`, url: '' }
+    ]);
+  };
+  
+  // Remove document URL input
+  const handleRemoveDocumentUrl = (id: string) => {
+    setInputDocumentUrls(inputDocumentUrls.filter(doc => doc.id !== id));
+  };
+  
+  // Update document URL
+  const handleDocumentUrlChange = (id: string, value: string) => {
+    setInputDocumentUrls(
+      inputDocumentUrls.map(doc => 
+        doc.id === id ? { ...doc, url: value } : doc
+      )
+    );
+    
+    // Clear error when user types
+    if (errors[`doc-${id}`]) {
+      setErrors({ ...errors, [`doc-${id}`]: '' });
+    }
+  };
+  
+  // Validate form
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    
+    // Validate node name
+    if (!nodeName.trim()) {
+      newErrors.nodeName = 'Node name is required';
+    }
+    
+    // Validate document URLs
+    inputDocumentUrls.forEach((doc, index) => {
+      if (!doc.url.trim()) {
+        newErrors[`doc-${doc.id}`] = 'Document URL is required';
+      } else if (!isValidUrl(doc.url)) {
+        newErrors[`doc-${doc.id}`] = 'Invalid URL format';
+      }
+    });
+    
+    // Validate example format URL
+    if (!exampleFormatUrl.trim()) {
+      newErrors.exampleFormatUrl = 'Example format URL is required';
+    } else if (!isValidUrl(exampleFormatUrl)) {
+      newErrors.exampleFormatUrl = 'Invalid URL format';
+    } else if (!exampleFormatUrl.toLowerCase().endsWith('.pdf')) {
+      newErrors.exampleFormatUrl = 'Example format must be a PDF file';
+    }
+    
+    // Validate instructions
+    if (!instructions.trim()) {
+      newErrors.instructions = 'Instructions are required';
+    } else if (instructions.trim().length < 10) {
+      newErrors.instructions = 'Instructions must be at least 10 characters';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+  
+  // Check if URL is valid
+  const isValidUrl = (url: string): boolean => {
+    try {
+      new URL(url);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  };
+  
+  // Handle form submission
+  const handleSubmit = async () => {
+    if (validateForm()) {
+      try {
+        // Create transformation request
+        const transformationRequest = {
+          nodeName,
+          inputDocumentUrls,
+          exampleFormatUrl,
+          instruction: instructions,
+          outputTemplate: outputTemplate,
+          model
+        };
+
+        // Call transformation service
+        const result = await transformationService.processTransformation({
+          sourceDocIds: inputDocumentUrls.map(doc => doc.url),
+          templateDocId: exampleFormatUrl,
+          instruction: instructions,
+          outputTemplate: outputTemplate,
+          model: model
+        });
+        
+        if (result.success) {
+          // Call the parent onSubmit with the result
+          onSubmit({
+            nodeName,
+            inputDocumentUrls,
+            exampleFormatUrl,
+            instructions,
+            outputTemplate,
+            model,
+            outputDoc: result.data?.transformedDocument ? {
+              name: result.data.transformedDocument.name,
+              path: result.data.transformedDocument.path
+            } : null
+          });
+        } else {
+          // Show error message
+          setErrors({ submit: result.error || 'Failed to process transformation' });
+        }
+      } catch (error) {
+        console.error('Error processing transformation:', error);
+        setErrors({ submit: error instanceof Error ? error.message : 'Unknown error occurred' });
+      }
+    }
+  };
+  
+  // Toggle node preview
+  const handleTogglePreview = () => {
+    setShowPreview(!showPreview);
+  };
+  
+  // Extract filename from URL
+  const getFilenameFromUrl = (url: string): string => {
+    try {
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/');
+      return pathParts[pathParts.length - 1] || 'Unknown file';
+    } catch (e) {
+      return 'Invalid URL';
+    }
+  };
+  
+  // Create preview node data
+  const createPreviewNodeData = () => ({
+    label: 'Document Transformation',
+    description: 'Transforms documents using Claude AI',
+    sourceDoc: inputDocumentUrls[0]?.url ? {
+      name: getFilenameFromUrl(inputDocumentUrls[0].url),
+      path: inputDocumentUrls[0].url
+    } : null,
+    templateDoc: exampleFormatUrl ? {
+      name: getFilenameFromUrl(exampleFormatUrl),
+      path: exampleFormatUrl
+    } : null,
+    instruction: instructions,
+    outputTemplate: outputTemplate,
+    model: model,
+    status: 'idle' as const,
+    outputDoc: null
   });
   
-  // Reset form when dialog opens/closes or initialData changes
-  React.useEffect(() => {
-    if (isOpen) {
-      setName(initialData?.name || '');
-      setDescription(initialData?.description || '');
-      setInstruction(initialData?.instruction || '');
-      setOutputTemplate(initialData?.outputTemplate || '');
-      setModel(initialData?.model || 'claude-3-haiku-20240307');
-      setTemplateDoc(initialData?.templateDoc || null);
-      setError(null);
-      setSuccess(null);
-      setTabValue(0);
-    }
-  }, [isOpen, initialData]);
-  
-  // Update preview data when form fields change
-  React.useEffect(() => {
-    setPreviewData({
-      name,
-      description,
-      instruction,
-      outputTemplate,
-      model,
-      templateDoc
-    });
-  }, [name, description, instruction, outputTemplate, model, templateDoc]);
-  
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
-  
-  const handleOpenDocSelector = (type: 'template') => {
-    setDocSelectorType(type);
-    setDocSelectorOpen(true);
-  };
-  
-  const handleCloseDocSelector = () => {
-    setDocSelectorOpen(false);
-    setDocSelectorType(null);
-  };
-  
-  const handleDocumentSelected = (document: FileItem) => {
-    if (!document) return;
-    
-    if (docSelectorType === 'template') {
-      setTemplateDoc(document);
-    }
-    
-    setDocSelectorOpen(false);
-    setDocSelectorType(null);
-  };
-  
-  const handleRemoveDocument = (type: 'template') => {
-    if (type === 'template') {
-      setTemplateDoc(null);
-    }
-  };
-  
-  const validateForm = () => {
-    if (!name.trim()) {
-      setError('Name is required');
-      return false;
-    }
-    
-    if (!instruction.trim()) {
-      setError('Instruction is required');
-      return false;
-    }
-    
-    return true;
-  };
-  
-  const handleSave = async () => {
-    if (!validateForm()) return;
-    
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-    
-    try {
-      // Prepare node data
-      const nodeData = {
-        name,
-        description,
-        instruction,
-        outputTemplate,
-        model,
-        templateDocId: templateDoc?.id || null
-      };
-      
-      // Call API to create node
-      const response = await axios.post(`${API_BASE_URL}/transformation/node`, nodeData);
-      
-      if (response.data.success) {
-        setSuccess('Transformation node created successfully');
-        
-        // Call onSave callback with created node data
-        if (onSave) {
-          onSave(response.data.data);
-        }
-        
-        // Close dialog after a short delay
-        setTimeout(() => {
-          onClose();
-        }, 1500);
-      } else {
-        setError(response.data.error || 'Failed to create transformation node');
-      }
-    } catch (error: any) {
-      console.error('Error creating transformation node:', error);
-      setError(error.message || 'An error occurred while creating the transformation node');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   return (
-    <Dialog 
-      open={isOpen} 
-      onClose={onClose}
-      maxWidth="md"
-      fullWidth
-      fullScreen={isMobile}
-      PaperProps={{
-        sx: {
-          borderRadius: isMobile ? 0 : 2,
-          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-          height: isMobile ? '100%' : 'auto',
-          maxHeight: isMobile ? '100%' : '90vh'
-        }
-      }}
-    >
-      <StyledDialogTitle>
-        <Typography variant="h6">
-          {initialData ? 'Edit Transformation Node' : 'Create Transformation Node'}
-        </Typography>
-        <IconButton edge="end" color="inherit" onClick={onClose} aria-label="close">
-          <CloseIcon />
-        </IconButton>
-      </StyledDialogTitle>
+    <FormContainer elevation={3}>
+      <SectionTitle variant="h5">
+        Transformation Node Setup
+      </SectionTitle>
+      <Typography variant="body2" color="text.secondary" paragraph>
+        Configure your transformation node with document URLs and instructions for Claude AI.
+      </Typography>
       
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs 
-          value={tabValue} 
-          onChange={handleTabChange} 
-          aria-label="node form tabs"
-          variant={isMobile ? "fullWidth" : "standard"}
-          centered
-          sx={{ px: 2 }}
-        >
-          <StyledTab label="Configuration" id="node-tab-0" />
-          <StyledTab label="Preview" id="node-tab-1" />
-        </Tabs>
+      <Divider sx={{ my: 2 }} />
+      
+      {/* Node Name */}
+      <Box sx={{ mb: 3 }}>
+        <SectionTitle variant="h6">
+          Node Name
+        </SectionTitle>
+        <TextField
+          fullWidth
+          label="Node Name"
+          value={nodeName}
+          onChange={(e) => setNodeName(e.target.value)}
+          error={!!errors.nodeName}
+          helperText={errors.nodeName || 'Enter a descriptive name for this transformation node'}
+          variant="outlined"
+        />
       </Box>
       
-      <DialogContent sx={{ p: 3 }}>
-        <TabPanel value={tabValue} index={0}>
-          <FormContainer>
-            <StyledPaper elevation={0}>
-              <Typography variant="h6" gutterBottom sx={{ color: '#334155', fontWeight: 600, mb: 2 }}>
-                Basic Information
-              </Typography>
-              
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
-                      Node Name*
-                    </Typography>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Enter node name"
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        fontSize: '16px',
-                        borderRadius: '8px',
-                        border: '1px solid #e2e8f0',
-                        outline: 'none',
-                        transition: 'border-color 0.2s',
-                        '&:focus': {
-                          borderColor: '#6366F1'
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                
-                <Grid item xs={12}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
-                      Description
-                    </Typography>
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Enter node description"
-                      rows={2}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        fontSize: '16px',
-                        borderRadius: '8px',
-                        border: '1px solid #e2e8f0',
-                        outline: 'none',
-                        resize: 'vertical',
-                        fontFamily: 'inherit',
-                        transition: 'border-color 0.2s',
-                        '&:focus': {
-                          borderColor: '#6366F1'
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-              </Grid>
-            </StyledPaper>
-            
-            <Box sx={{ my: 3 }}>
-              <Divider />
-            </Box>
-            
-            <StyledPaper elevation={0}>
-              <Typography variant="h6" gutterBottom sx={{ color: '#334155', fontWeight: 600, mb: 2 }}>
-                Transformation Settings
-              </Typography>
-              
-              <Grid container spacing={2}>
-                <Grid item xs={12}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
-                      Instruction*
-                    </Typography>
-                    <textarea
-                      value={instruction}
-                      onChange={(e) => setInstruction(e.target.value)}
-                      placeholder="Enter transformation instruction"
-                      rows={4}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        fontSize: '16px',
-                        borderRadius: '8px',
-                        border: '1px solid #e2e8f0',
-                        outline: 'none',
-                        resize: 'vertical',
-                        fontFamily: 'inherit',
-                        transition: 'border-color 0.2s',
-                        '&:focus': {
-                          borderColor: '#6366F1'
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                
-                <Grid item xs={12}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
-                      Output Template
-                    </Typography>
-                    <textarea
-                      value={outputTemplate}
-                      onChange={(e) => setOutputTemplate(e.target.value)}
-                      placeholder="Enter output template (optional)"
-                      rows={3}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        fontSize: '16px',
-                        borderRadius: '8px',
-                        border: '1px solid #e2e8f0',
-                        outline: 'none',
-                        resize: 'vertical',
-                        fontFamily: 'inherit',
-                        transition: 'border-color 0.2s',
-                        '&:focus': {
-                          borderColor: '#6366F1'
-                        }
-                      }}
-                    />
-                  </Box>
-                </Grid>
-                
-                <Grid item xs={12}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
-                      Model
-                    </Typography>
-                    <select
-                      value={model}
-                      onChange={(e) => setModel(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        fontSize: '16px',
-                        borderRadius: '8px',
-                        border: '1px solid #e2e8f0',
-                        outline: 'none',
-                        backgroundColor: 'white',
-                        transition: 'border-color 0.2s',
-                        '&:focus': {
-                          borderColor: '#6366F1'
-                        }
-                      }}
-                    >
-                      <option value="claude-3-haiku-20240307">Claude 3 Haiku</option>
-                      <option value="claude-3-sonnet-20240229">Claude 3 Sonnet</option>
-                      <option value="claude-3-opus-20240229">Claude 3 Opus</option>
-                    </select>
-                  </Box>
-                </Grid>
-                
-                <Grid item xs={12}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 500 }}>
-                      Template Document (Optional)
-                    </Typography>
-                    
-                    {templateDoc ? (
-                      <Box 
-                        sx={{ 
-                          display: 'flex', 
-                          justifyContent: 'space-between', 
-                          alignItems: 'center',
-                          p: 1.5,
-                          mb: 1,
-                          border: '1px solid #e0e0e0',
-                          borderRadius: 2,
-                          backgroundColor: '#f8fafc'
-                        }}
-                      >
-                        <Typography variant="body2">{templateDoc.name}</Typography>
-                        <Button 
-                          size="small" 
-                          color="error" 
-                          onClick={() => handleRemoveDocument('template')}
-                          variant="outlined"
-                          sx={{ borderRadius: 4 }}
-                        >
-                          Remove
-                        </Button>
-                      </Box>
-                    ) : (
-                      <Button 
-                        variant="outlined" 
-                        onClick={() => handleOpenDocSelector('template')}
-                        fullWidth
-                        startIcon={<AddIcon />}
-                        sx={{ 
-                          borderRadius: 2,
-                          py: 1,
-                          borderStyle: 'dashed',
-                          borderWidth: 2
-                        }}
-                      >
-                        Select Template Document
-                      </Button>
-                    )}
-                  </Box>
-                </Grid>
-              </Grid>
-            </StyledPaper>
-            
-            {error && (
-              <Box sx={{ 
-                mt: 3, 
-                p: 2, 
-                bgcolor: '#fff1f2', 
-                borderRadius: 2,
-                border: '1px solid #fecdd3'
-              }}>
-                <Typography color="error" variant="body2" sx={{ fontWeight: 500 }}>
-                  Error: {error}
-                </Typography>
-              </Box>
-            )}
-            
-            {success && (
-              <Box sx={{ 
-                mt: 3, 
-                p: 2, 
-                bgcolor: '#f0fdf4', 
-                borderRadius: 2,
-                border: '1px solid #bbf7d0'
-              }}>
-                <Typography color="success.main" variant="body2" sx={{ fontWeight: 500 }}>
-                  Success: {success}
-                </Typography>
-              </Box>
-            )}
-          </FormContainer>
-        </TabPanel>
+      {/* Input Document URLs */}
+      <Box sx={{ mb: 3 }}>
+        <SectionTitle variant="h6">
+          Input Document URLs
+        </SectionTitle>
+        <Typography variant="body2" color="text.secondary" paragraph>
+          Add URLs to the documents you want to process (e.g., http://localhost:3000/file/document.txt)
+        </Typography>
         
-        <TabPanel value={tabValue} index={1}>
-          <Box sx={{ p: 2, display: 'flex', justifyContent: 'center' }}>
-            <Box sx={{ maxWidth: 400, width: '100%' }}>
-              <Typography variant="h6" gutterBottom sx={{ textAlign: 'center', mb: 3 }}>
-                Node Preview
-              </Typography>
-              
-              <TransformationNodePreview
-                data={{
-                  label: previewData.name || 'Untitled Node',
-                  description: previewData.description,
-                  instruction: previewData.instruction,
-                  outputTemplate: previewData.outputTemplate,
-                  model: previewData.model,
-                  templateDoc: previewData.templateDoc,
-                  status: 'ready'
-                }}
-              />
-            </Box>
-          </Box>
-        </TabPanel>
-      </DialogContent>
-      
-      <DialogActions sx={{ 
-        borderTop: '1px solid #e0e0e0',
-        px: 3,
-        py: 2
-      }}>
-        <Button 
-          onClick={onClose}
+        <List disablePadding>
+          {inputDocumentUrls.map((doc, index) => (
+            <ListItem key={doc.id} disablePadding sx={{ mb: 1 }}>
+              <UrlInput sx={{ width: '100%' }}>
+                <ListItemIcon>
+                  <LinkIcon />
+                </ListItemIcon>
+                <TextField
+                  fullWidth
+                  label={`Document ${index + 1} URL`}
+                  value={doc.url}
+                  onChange={(e) => handleDocumentUrlChange(doc.id, e.target.value)}
+                  error={!!errors[`doc-${doc.id}`]}
+                  helperText={errors[`doc-${doc.id}`] || ''}
+                  variant="outlined"
+                  size="small"
+                />
+                <IconButton 
+                  onClick={() => handleRemoveDocumentUrl(doc.id)}
+                  disabled={inputDocumentUrls.length <= 1}
+                  color="error"
+                >
+                  <DeleteIcon />
+                </IconButton>
+              </UrlInput>
+            </ListItem>
+          ))}
+        </List>
+        
+        <Button
+          startIcon={<AddIcon />}
+          onClick={handleAddDocumentUrl}
           variant="outlined"
-          sx={{ borderRadius: 2 }}
+          sx={{ mt: 1 }}
+          disabled={inputDocumentUrls.length >= 5}
+        >
+          Add Document URL
+        </Button>
+      </Box>
+      
+      {/* Example Format URL */}
+      <Box sx={{ mb: 3 }}>
+        <SectionTitle variant="h6">
+          Example Format URL (PDF)
+        </SectionTitle>
+        <TextField
+          fullWidth
+          label="Example Format URL"
+          value={exampleFormatUrl}
+          onChange={(e) => setExampleFormatUrl(e.target.value)}
+          error={!!errors.exampleFormatUrl}
+          helperText={errors.exampleFormatUrl || 'Enter the URL to a PDF file that serves as a template'}
+          variant="outlined"
+        />
+      </Box>
+      
+      {/* Instructions */}
+      <Box sx={{ mb: 3 }}>
+        <SectionTitle variant="h6">
+          Instructions for Claude AI
+        </SectionTitle>
+        <CustomInstructionEditor
+          value={instructions}
+          onChange={setInstructions}
+          error={errors.instructions}
+          onModelChange={setModel}
+          defaultModel={model}
+        />
+      </Box>
+      
+      {/* Output Template */}
+      <Box sx={{ mb: 3 }}>
+        <SectionTitle variant="h6">
+          Output Template
+        </SectionTitle>
+        <TextField
+          fullWidth
+          multiline
+          rows={4}
+          label="Output Template"
+          value={outputTemplate}
+          onChange={(e) => setOutputTemplate(e.target.value)}
+          helperText="Optional template for structuring the output"
+          variant="outlined"
+        />
+      </Box>
+      
+      {/* Preview */}
+      <Box sx={{ mb: 3 }}>
+        <Button
+          variant="outlined"
+          onClick={handleTogglePreview}
+          sx={{ mb: 2 }}
+        >
+          {showPreview ? 'Hide Preview' : 'Show Node Preview'}
+        </Button>
+        
+        {showPreview && (
+          <Box sx={{ 
+            border: '1px dashed #ccc', 
+            borderRadius: 2, 
+            p: 2, 
+            bgcolor: '#fafafa',
+            display: 'flex',
+            justifyContent: 'center'
+          }}>
+            <TransformationNodePreview 
+              data={createPreviewNodeData()}
+            />
+          </Box>
+        )}
+      </Box>
+      
+      {/* Form Actions */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+        <Button
+          variant="outlined"
+          onClick={onCancel}
         >
           Cancel
         </Button>
-        <Button 
-          onClick={handleSave}
+        <Button
           variant="contained"
           color="primary"
-          disabled={loading}
-          startIcon={loading ? <CircularProgress size={20} /> : null}
-          sx={{ 
-            borderRadius: 2,
-            px: 3,
-            background: loading ? undefined : 'linear-gradient(45deg, #6366F1 30%, #8B5CF6 90%)',
-            '&:hover': {
-              background: loading ? undefined : 'linear-gradient(45deg, #4F46E5 30%, #7C3AED 90%)',
-            }
-          }}
+          onClick={handleSubmit}
         >
-          {loading ? 'Saving...' : (initialData ? 'Update Node' : 'Create Node')}
+          Create Transformation Node
         </Button>
-      </DialogActions>
-      
-      {/* Document Selector Dialog */}
-      {docSelectorOpen && (
-        <Dialog 
-          open={docSelectorOpen} 
-          onClose={handleCloseDocSelector}
-          maxWidth="md"
-          fullWidth
-        >
-          <DialogTitle>
-            Select {docSelectorType === 'template' ? 'Template' : ''} Document
-          </DialogTitle>
-          <DialogContent sx={{ height: '500px', p: 0 }}>
-            <DocumentSelector
-              onSelect={handleDocumentSelected}
-              initialPath="/"
-            />
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseDocSelector}>Cancel</Button>
-          </DialogActions>
-        </Dialog>
-      )}
-    </Dialog>
+      </Box>
+    </FormContainer>
   );
 };
 

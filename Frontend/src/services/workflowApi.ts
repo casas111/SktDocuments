@@ -3,9 +3,9 @@ import { Process } from '../types/workflow';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3001';
 
-export const processTranslation = async (documentId: string, exampleDocumentId: string) => {
+export const processTransformation = async (documentId: string, exampleDocumentId: string) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/api/workflow/process/translation`, {
+    const response = await axios.post(`${API_BASE_URL}/api/workflow/process/transformation`, {
       documentId,
       exampleDocumentId
     });
@@ -31,4 +31,4 @@ export const getAllProcesses = async () => {
   } catch (error) {
     throw error;
   }
-}; 
+};

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getAllProcesses, processTranslation, getProcessStatus } from '../services/api';
+import { getAllProcesses, processTransformation, getProcessStatus } from '../services/api';
 import { Process } from '../types/process';
 
 interface ApiResponse<T> {
@@ -26,15 +26,15 @@ export const useWorkflow = () => {
     }
   };
 
-  const startTranslation = async (documentId: string, targetLanguage: string) => {
+  const startTransformation = async (documentId: string, targetLanguage: string) => {
     setLoading(true);
     try {
-      const response = await processTranslation(documentId, targetLanguage);
+      const response = await processTransformation(documentId, targetLanguage);
       const newProcess = response;
       setProcesses(prev => [...prev, newProcess]);
     } catch (err) {
-      setError('Failed to start translation');
-      console.error('Error starting translation:', err);
+      setError('Failed to start transformation');
+      console.error('Error starting transformation:', err);
     } finally {
       setLoading(false);
     }
@@ -65,9 +65,9 @@ export const useWorkflow = () => {
     loading,
     error,
     loadProcesses,
-    startTranslation,
+    startTransformation,
     checkProcessStatus
   };
 };
 
-export default useWorkflow; 
+export default useWorkflow;

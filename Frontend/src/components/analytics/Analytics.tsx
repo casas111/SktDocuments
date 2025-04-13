@@ -65,7 +65,7 @@ const ChartContainer = styled(Box)(({ theme }) => ({
 
 const nodeTypeData = [
   { name: 'Communication', value: 0, color: '#2196f3' },
-  { name: 'Translation', value: 0, color: '#4caf50' },
+  { name: 'Transformation', value: 0, color: '#4caf50' },
   { name: 'Simetrik SaaS', value: 0, color: '#9c27b0' },
   { name: 'Comparison', value: 0, color: '#ff9800' },
 ];
@@ -91,7 +91,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ nodes, edges }) => {
     // Calculate node type statistics
     const nodeCounts = {
       communicationNode: 0,
-      translationNode: 0,
+      transformationNode: 0,
       simetrikNode: 0,
       comparisonNode: 0,
     };
@@ -104,7 +104,7 @@ const Analytics: React.FC<AnalyticsProps> = ({ nodes, edges }) => {
     
     const updatedNodeStats = [
       { name: 'Communication', value: nodeCounts.communicationNode, color: '#2196f3' },
-      { name: 'Translation', value: nodeCounts.translationNode, color: '#4caf50' },
+      { name: 'Transformation', value: nodeCounts.transformationNode, color: '#4caf50' },
       { name: 'Simetrik SaaS', value: nodeCounts.simetrikNode, color: '#9c27b0' },
       { name: 'Comparison', value: nodeCounts.comparisonNode, color: '#ff9800' },
     ];
